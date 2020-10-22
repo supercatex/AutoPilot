@@ -1,0 +1,181 @@
+import carla
+import numpy as np
+import pygame
+from pygame.locals import K_w, K_a, K_s, K_d, K_SPACE, K_ESCAPE
+import time
+
+
+class World(object):
+    def __init__(self,
+                 client: carla.Client,
+                 map_name: str = None,
+                 screen_size = (640, 480)):
+        self.client: carla.Client = client
+        self.carla_world: carla.World = client.get_world()
+        self.screen_size = screen_size
+
+        if map_name is not None and self.carla_world.get_map().name != map_name:
+            print("Loading", map_name, "world...")
+            self.carla_world = client.load_world(map_name)
+            time.sleep(10.0)
+            print("New map loaded.")
+        self.destroy_actors()
+
+        pygame.init()
+        pygame.font.init()
+        # fonts = [x for x in pygame.font.get_fonts()]
+        font = pygame.font.match_font("couriernew")
+        self.font = pygame.font.Font(font, 16)
+        self.display = pygame.display.set_mode(
+            screen_size,
+            pygame.HWSURFACE | pygame.DOUBLEBUF
+        )
+        self.clock = pygame.time.Clock()
+        self.is_done = False
+
+    def render_image(self, image):
+        if image is None:
+            return
+        surface = pygame.surfarray.make_surface(image)
+        self.display.blit(surface, (0, 0))
+
+    def render_text(self, text, pos=(0, 0), color=(255, 255, 255)):
+        self.display.blit(self.font.render(text, True, color), pos)
+
+    def redraw_display(self, fps=60):
+        pygame.display.flip()
+        self.clock.tick_busy_loop(fps)
+
+    def destroy_actors(self):
+        for actor in self.carla_world.get_actors().filter("vehicle.*"):
+            actor.destroy()
+        for actor in self.carla_world.get_actors().filter("walker.*"):
+            actor.destroy()
+        for actor in self.carla_world.get_actors().filter("sensor.*"):
+            actor.destroy()
+
+    def key_handler(self):
+        events = pygame.event.get()
+        for e in events:
+            if e.type == pygame.QUIT:
+                self.is_done = True
+            elif e.type == pygame.KEYUP and e.key == K_ESCAPE:
+                self.is_done = True
+        return events
+
+
+class Vehicle(object):
+    def __init__(self,
+                 world: World,
+                 role_name: str,
+                 color: str = "0.0, 255.0, 0.0",
+                 bp_filter: str = "vehicle.*"):
+        self.world: World = world
+        self.role_name: str = role_name
+        self.color: str = color
+        self.bp_filter: str = bp_filter
+
+        self.carla_world: carla.World = self.world.carla_world
+        self.map: carla.Map = self.carla_world.get_map()
+        bp_lib: carla.BlueprintLibrary = self.carla_world.get_blueprint_library()
+        bps = bp_lib.filter(self.bp_filter)
+        spawn_points = self.map.get_spawn_points()
+
+        bp = np.random.choice(bps)
+        bp.set_attribute("role_name", role_name)
+        bp.set_attribute("color", color)
+        tf: carla.Transform = np.random.choice(spawn_points)
+        tf.location.z = 1.0
+        self.actor: carla.Actor = self.carla_world.spawn_actor(bp, tf)
+
+        bp = bp_lib.find("sensor.camera.rgb")
+        bp.set_attribute("image_size_x", "640")
+        bp.set_attribute("image_size_y", "480")
+        bp.set_attribute("fov", "110")
+        tf: carla.Transform = carla.Transform(
+            carla.Location(x=2.5, y=0.0, z=1.5),
+            carla.Rotation(pitch=-20.0, yaw=0.0, roll=0.0)
+        )
+        self.rgb_camera: carla.Actor = self.carla_world.spawn_actor(bp, tf, attach_to=self.actor)
+        self.rgb_camera.listen(lambda data: self.rgb_camera_handler(data))
+        self.rgb_image = None
+
+        bp = bp_lib.find("sensor.other.collision")
+        tf: carla.Transform = carla.Transform()
+        self.collision_detector: carla.Actor = self.carla_world.spawn_actor(bp, tf, attach_to=self.actor)
+        self.collision_detector.listen(lambda event: self.collision_handler(event))
+        self.has_collided = False
+
+        self.throttle = 0.0
+        self.brake = 0.0
+        self.steer = 0.0
+        self.reverse = False
+
+    def rgb_camera_handler(self, data: carla.Image):
+        img = np.frombuffer(data.raw_data, dtype=np.uint8)
+        img = img.reshape((480, 640, 4))
+        img = img[:, :, :3]
+        img = img[:, :, ::-1]
+        img = img.swapaxes(0, 1)
+        self.rgb_image = img
+
+    def collision_handler(self, event: carla.CollisionEvent):
+        print("Crash with", event.other_actor)
+        self.has_collided = True
+
+    def action(self):
+        self.control(self.throttle, self.brake, self.steer, self.reverse)
+
+    def control(self,
+                throttle: float = 0.0,
+                brake: float = 0.0,
+                steer: float = 0.0,
+                reverse: bool = False):
+        self.actor.apply_control(
+            carla.VehicleControl(
+                throttle=throttle,
+                brake=brake,
+                steer=steer,
+                reverse=reverse
+            )
+        )
+
+    def speed_mps(self) -> float:
+        v: carla.Vector3D = self.actor.get_velocity()
+        s = np.sqrt(v.x ** 2 + v.y ** 2 + v.z ** 2)
+        return s
+
+    def speed_kmh(self) -> float:
+        return 3.6 * self.speed_mps()
+
+    def destroy(self):
+        self.actor.destroy()
+        self.rgb_camera.destroy()
+        self.collision_detector.destroy()
+
+    def key_handler(self, events):
+        for e in events:
+            if e.type == pygame.KEYUP:
+                if e.key == K_w:
+                    self.throttle = 0.0
+                elif e.key == K_s:
+                    self.reverse = False
+                    self.throttle = 0.0
+                elif e.key == K_a:
+                    self.steer = 0.0
+                elif e.key == K_d:
+                    self.steer = 0.0
+                elif e.key == K_SPACE:
+                    self.brake = 0.0
+            elif e.type == pygame.KEYDOWN:
+                if e.key == K_w:
+                    self.throttle = 1.0
+                elif e.key == K_s:
+                    self.reverse = True
+                    self.throttle = 1.0
+                elif e.key == K_a:
+                    self.steer = -1.0
+                elif e.key == K_d:
+                    self.steer = 1.0
+                elif e.key == K_SPACE:
+                    self.brake = 1.0
