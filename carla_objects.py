@@ -194,6 +194,8 @@ class Vehicle(object):
         self.actor.destroy()
         self.rgb_camera.destroy()
         self.collision_detector.destroy()
+        self.obstacle_left.destroy()
+        self.obstacle_right.destroy()
 
     def key_handler(self, events):
         for e in events:
