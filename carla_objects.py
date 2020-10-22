@@ -9,7 +9,8 @@ class World(object):
     def __init__(self,
                  client: carla.Client,
                  map_name: str = None,
-                 screen_size = (640, 480)):
+                 screen_size = (640, 480),
+                 camera_pos = (-60, -10, 80)):
         self.client: carla.Client = client
         self.carla_world: carla.World = client.get_world()
         self.screen_size = screen_size
@@ -20,6 +21,14 @@ class World(object):
             time.sleep(10.0)
             print("New map loaded.")
         self.destroy_actors()
+
+        spectator = self.carla_world.get_spectator()
+        spectator.set_transform(
+            carla.Transform(
+                carla.Location(x=camera_pos[0], y=camera_pos[1], z=camera_pos[2]),
+                carla.Rotation(pitch=-90, roll=90)
+            )
+        )
 
         pygame.init()
         pygame.font.init()
@@ -106,10 +115,40 @@ class Vehicle(object):
         self.collision_detector.listen(lambda event: self.collision_handler(event))
         self.has_collided = False
 
+        bp = bp_lib.find("sensor.other.obstacle")
+        bp.set_attribute("distance", "10")
+        bp.set_attribute("hit_radius", "0.5")
+        bp.set_attribute("debug_linetrace", "False")
+        tf: carla.Transform = carla.Transform(
+            carla.Location(x=0.0, y=0.0, z=1.0),
+            carla.Rotation(pitch=0.0, yaw=-90.0, roll=0.0)
+        )
+        self.obstacle_left: carla.Actor = self.carla_world.spawn_actor(bp, tf, attach_to=self.actor)
+        self.obstacle_left.listen(self.obstacle_left_handler)
+        self.distance_left = 0
+
+        bp = bp_lib.find("sensor.other.obstacle")
+        bp.set_attribute("distance", "10")
+        bp.set_attribute("hit_radius", "0.5")
+        bp.set_attribute("debug_linetrace", "False")
+        tf: carla.Transform = carla.Transform(
+            carla.Location(x=0.0, y=0.0, z=1.0),
+            carla.Rotation(pitch=0.0, yaw=90.0, roll=0.0)
+        )
+        self.obstacle_right: carla.Actor = self.carla_world.spawn_actor(bp, tf, attach_to=self.actor)
+        self.obstacle_right.listen(self.obstacle_right_handler)
+        self.distance_right = 0
+
         self.throttle = 0.0
         self.brake = 0.0
         self.steer = 0.0
         self.reverse = False
+
+    def obstacle_left_handler(self, data):
+        self.distance_left = data.distance
+
+    def obstacle_right_handler(self, data):
+        self.distance_right = data.distance
 
     def rgb_camera_handler(self, data: carla.Image):
         img = np.frombuffer(data.raw_data, dtype=np.uint8)
