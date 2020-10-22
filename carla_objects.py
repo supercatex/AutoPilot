@@ -18,7 +18,7 @@ class World(object):
         if map_name is not None and self.carla_world.get_map().name != map_name:
             print("Loading", map_name, "world...")
             self.carla_world = client.load_world(map_name)
-            time.sleep(10.0)
+            time.sleep(5.0)
             print("New map loaded.")
         self.destroy_actors()
 
@@ -78,11 +78,13 @@ class Vehicle(object):
                  world: World,
                  role_name: str,
                  color: str = "0.0, 255.0, 0.0",
-                 bp_filter: str = "vehicle.*"):
+                 bp_filter: str = "vehicle.*",
+                 debug: bool = False):
         self.world: World = world
         self.role_name: str = role_name
         self.color: str = color
         self.bp_filter: str = bp_filter
+        self.debug = debug
 
         self.carla_world: carla.World = self.world.carla_world
         self.map: carla.Map = self.carla_world.get_map()
@@ -118,7 +120,7 @@ class Vehicle(object):
         bp = bp_lib.find("sensor.other.obstacle")
         bp.set_attribute("distance", "10")
         bp.set_attribute("hit_radius", "0.5")
-        bp.set_attribute("debug_linetrace", "False")
+        bp.set_attribute("debug_linetrace", str(self.debug))
         tf: carla.Transform = carla.Transform(
             carla.Location(x=0.0, y=0.0, z=1.0),
             carla.Rotation(pitch=0.0, yaw=-90.0, roll=0.0)
@@ -130,7 +132,7 @@ class Vehicle(object):
         bp = bp_lib.find("sensor.other.obstacle")
         bp.set_attribute("distance", "10")
         bp.set_attribute("hit_radius", "0.5")
-        bp.set_attribute("debug_linetrace", "False")
+        bp.set_attribute("debug_linetrace", str(self.debug))
         tf: carla.Transform = carla.Transform(
             carla.Location(x=0.0, y=0.0, z=1.0),
             carla.Rotation(pitch=0.0, yaw=90.0, roll=0.0)

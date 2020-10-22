@@ -7,7 +7,7 @@ try:
 
     world = World(client, "road_race", (640, 480))
     while not world.is_done:
-        runner = Vehicle(world, "runner", bp_filter="vehicle.tesla.model3")
+        runner = Vehicle(world, "runner", bp_filter="vehicle.tesla.model3", debug=True)
         while not runner.has_collided and not world.is_done:
             events = world.key_handler()
 
