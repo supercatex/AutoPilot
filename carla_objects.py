@@ -1,7 +1,7 @@
 import carla
 import numpy as np
 import pygame
-from pygame.locals import K_w, K_a, K_s, K_d, K_SPACE, K_ESCAPE
+from pygame.locals import K_w, K_a, K_s, K_d, K_SPACE, K_ESCAPE, K_p
 import time
 
 
@@ -143,6 +143,7 @@ class Vehicle(object):
         self.brake = 0.0
         self.steer = 0.0
         self.reverse = False
+        self.auto_pilot = False
 
     def obstacle_left_handler(self, data):
         self.distance_left = data.distance
@@ -206,6 +207,8 @@ class Vehicle(object):
                     self.steer = 0.0
                 elif e.key == K_SPACE:
                     self.brake = 0.0
+                elif e.key == K_p:
+                    self.auto_pilot = not self.auto_pilot
             elif e.type == pygame.KEYDOWN:
                 if e.key == K_w:
                     self.throttle = 1.0

@@ -12,6 +12,10 @@ try:
             events = world.key_handler()
 
             runner.key_handler(events)
+            if runner.auto_pilot:
+                d = runner.distance_left - runner.distance_right
+                runner.throttle = 0.3
+                runner.steer = max(-1, min(1, -d * 0.2))
             runner.action()
 
             world.render_image(runner.rgb_image)
