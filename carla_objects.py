@@ -9,13 +9,16 @@ class World(object):
     def __init__(self,
                  client: carla.Client,
                  map_name: str = None,
-                 screen_size = (640, 480),
-                 camera_pos = (-60, -10, 80)):
+                 screen_size=(640, 480),
+                 camera_pos=(-80, -10, 80)):
         self.client: carla.Client = client
         self.carla_world: carla.World = client.get_world()
         self.screen_size = screen_size
+        self.map: carla.Map = self.carla_world.get_map()
+        # for map_name in self.client.get_available_maps():
+        #     print(map_name)
 
-        if map_name is not None and self.carla_world.get_map().name != map_name:
+        if map_name is not None and self.map.name != map_name:
             print("Loading", map_name, "world...")
             self.carla_world = client.load_world(map_name)
             time.sleep(5.0)
@@ -41,6 +44,15 @@ class World(object):
         )
         self.clock = pygame.time.Clock()
         self.is_done = False
+
+    def debug_string(self, location: carla.Location, s: str, life_time=1.0, color=(255, 0, 0)):
+        self.carla_world.debug.draw_string(
+            location,
+            s, draw_shadow=False,
+            color=carla.Color(r=color[0], g=color[1], b=color[2]),
+            life_time=life_time,
+            persistent_lines=True
+        )
 
     def render_image(self, image):
         if image is None:
@@ -146,6 +158,12 @@ class Vehicle(object):
         self.steer = 0.0
         self.reverse = False
         self.auto_pilot = False
+
+    def get_location(self) -> carla.Location:
+        return self.actor.get_location()
+
+    def get_transform(self) -> carla.Transform:
+        return self.actor.get_transform()
 
     def obstacle_left_handler(self, data):
         self.distance_left = data.distance
