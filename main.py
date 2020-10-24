@@ -54,7 +54,7 @@ try:
 
             # -- Local Planning -- begin
             n_future = 20
-            kp, ki, kd, kf = 1.2, 0.0005, 10.0, 0.0007
+            kp, ki, kd, kf = 1.2, 0.0005, 10.0, 0.00075
             yaw1 = calc_yaw(runner.get_location(), next_waypoint.transform.location)
             yaw2 = calc_vehicle_yaw(runner)
             e1 = calc_yaw_diff(yaw1, yaw2)
@@ -83,17 +83,24 @@ try:
             runner.action()
             # -- Local Planning -- end
 
+            # -- Rendering -- begin
             world.render_image(runner.rgb_image)
-            world.render_text("Client: %.1ffps, Server: %.1ffps" % (world.clock.get_fps(), world.server_clock.get_fps()), (10, 10))
-            world.render_text("Speed: %.2fkm/h" % runner.speed_kmh(), (10, 30))
+
+            world.render_text("Speed: %.2fkm/h" % runner.speed_kmh(), (10, 10))
+            world.render_text("L: %.2f, R: %.2f" % (runner.distance_left, runner.distance_right), (10, 30))
             world.render_text("(W)  Throttle: %.2f" % runner.throttle, (10, 50))
             world.render_text("(Space) Brake: %.2f" % runner.brake, (10, 70))
             world.render_text("(A, D)  Steer: %.2f" % runner.steer, (10, 90))
             world.render_text("(S)   Reverse: %d" % runner.reverse, (10, 110))
             world.render_text("(P)Auto Pilot: " + str(runner.auto_pilot), (10, 130))
-            world.render_text("L: %.2f, R: %.2f" % (runner.distance_left, runner.distance_right), (10, 150))
             world.render_text("Lap speed: %.2fs" % lap_speed, (450, 10))
+            world.render_text(
+                "Client: %.1ffps, Server: %.1ffps" % (
+                    world.clock.get_fps(),
+                    world.server_clock.get_fps()
+                ), (280, 450))
             world.redraw_display()
+            # -- Rendering -- end
         runner.destroy()
 except Exception as e:
     print(e)
