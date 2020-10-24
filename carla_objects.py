@@ -43,7 +43,12 @@ class World(object):
             pygame.HWSURFACE | pygame.DOUBLEBUF
         )
         self.clock = pygame.time.Clock()
+        self.server_clock = pygame.time.Clock()
         self.is_done = False
+        self.carla_world.on_tick(self.on_server_tick)
+
+    def on_server_tick(self, timestamp):
+        self.server_clock.tick()
 
     def draw_string(self, location: carla.Location, s: str, life_time=1.0, color=(255, 0, 0)):
         self.carla_world.debug.draw_string(

@@ -6,6 +6,9 @@ try:
     client.set_timeout(5.0)
 
     world = World(client, "road_race_1", (640, 480))
+    # time.sleep(3.0)
+    # settings = carla.WorldSettings(synchronous_mode=True, no_rendering_mode=False, fixed_delta_seconds=1.0/30)
+    # frame = world.carla_world.apply_settings(settings)
 
     lap_speed = 0
     while not world.is_done:
@@ -81,7 +84,7 @@ try:
             # -- Local Planning -- end
 
             world.render_image(runner.rgb_image)
-            world.render_text("Client: %.1ffps" % world.clock.get_fps(), (10, 10))
+            world.render_text("Client: %.1ffps, Server: %.1ffps" % (world.clock.get_fps(), world.server_clock.get_fps()), (10, 10))
             world.render_text("Speed: %.2fkm/h" % runner.speed_kmh(), (10, 30))
             world.render_text("(W)  Throttle: %.2f" % runner.throttle, (10, 50))
             world.render_text("(Space) Brake: %.2f" % runner.brake, (10, 70))
