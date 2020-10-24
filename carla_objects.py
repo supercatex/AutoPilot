@@ -45,13 +45,21 @@ class World(object):
         self.clock = pygame.time.Clock()
         self.is_done = False
 
-    def debug_string(self, location: carla.Location, s: str, life_time=1.0, color=(255, 0, 0)):
+    def draw_string(self, location: carla.Location, s: str, life_time=1.0, color=(255, 0, 0)):
         self.carla_world.debug.draw_string(
             location,
             s, draw_shadow=False,
             color=carla.Color(r=color[0], g=color[1], b=color[2]),
             life_time=life_time,
             persistent_lines=True
+        )
+
+    def draw_box(self, box: carla.BoundingBox, rot: carla.Rotation, thickness=0.1, color=(255,0,0), life_time=-1.0):
+        self.carla_world.debug.draw_box(
+            box, rot,
+            thickness=thickness,
+            color=carla.Color(r=color[0], g=color[1], b=color[2]),
+            life_time=life_time
         )
 
     def render_image(self, image):
