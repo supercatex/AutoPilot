@@ -1,4 +1,3 @@
-from carla_objects import *
 from helper import *
 
 
@@ -15,7 +14,7 @@ try:
             runner.get_transform().location,
             carla.Vector3D(2, 2, 2)
         )
-        world.draw_box(box, runner.get_transform().rotation, 0.5, life_time=90)
+        world.draw_box(box, runner.get_transform().rotation, 0.5, life_time=60)
         runner.auto_pilot = True
 
         # -- Global Planning -- begin
