@@ -99,6 +99,10 @@ class World(object):
 
 
 class Vehicle(object):
+    NO_PILOT = 0
+    PID_PILOT = 1
+    DQN_PILOT = 2
+
     def __init__(self,
                  world: World,
                  role_name: str,
@@ -170,7 +174,7 @@ class Vehicle(object):
         self.brake = 0.0
         self.steer = 0.0
         self.reverse = False
-        self.auto_pilot = False
+        self.auto_pilot = Vehicle.NO_PILOT
 
     def get_location(self) -> carla.Location:
         return self.actor.get_location()
@@ -197,6 +201,7 @@ class Vehicle(object):
         self.has_collided = True
 
     def action(self):
+        # print(self.throttle, self.brake, self.steer, self.reverse)
         self.control(self.throttle, self.brake, self.steer, self.reverse)
 
     def control(self,
@@ -243,7 +248,10 @@ class Vehicle(object):
                 elif e.key == K_SPACE:
                     self.brake = 0.0
                 elif e.key == K_p:
-                    self.auto_pilot = not self.auto_pilot
+                    if self.auto_pilot == Vehicle.NO_PILOT:
+                        self.auto_pilot = Vehicle.PID_PILOT
+                    else:
+                        self.auto_pilot = Vehicle.NO_PILOT
             elif e.type == pygame.KEYDOWN:
                 if e.key == K_w:
                     self.throttle = 1.0
