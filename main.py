@@ -20,13 +20,13 @@ else:
     x = layers.Conv2D(64, (3, 3), (1, 1), "same", activation=activations.relu)(x)
     x = layers.BatchNormalization()(x)
     x = layers.GlobalAveragePooling2D()(x)
-    throttle_out = layers.Dense(1, activation=activations.tanh)(x)
+    # throttle_out = layers.Dense(1, activation=activations.tanh)(x)
     steer_out = layers.Dense(1, activation=activations.tanh)(x)
-    model = models.Model(x_in, [throttle_out, steer_out])
-    # model = models.Model(x_in, steer_out)
+    # model = models.Model(x_in, [throttle_out, steer_out])
+    model = models.Model(x_in, steer_out)
 model.compile(
     optimizer=optimizers.Adam(),
-    loss=[losses.mse, losses.mse]
+    loss=losses.mse
 )
 
 try:
@@ -39,7 +39,8 @@ try:
     # frame = world.carla_world.apply_settings(settings)
 
     lap_speed = 0
-    memory = deque(maxlen=1000)  # For DQN pilot -- replay memory
+    memory = deque(maxlen=5000)  # For DQN pilot -- replay memory
+    best_time = 22
     while not world.is_done:
         runner = Vehicle(world, "runner", bp_filter="vehicle.tesla.model3", debug=False)
         # box = carla.BoundingBox(
@@ -124,23 +125,27 @@ try:
                     state_1[:, :, 1] *= states[1]
                     state_1[:, :, 2] *= states[2]
                     x_in = np.reshape(state_1, (1, 120, 160, 3))
-                    action = np.array(model.predict(x_in))[:, 0, 0]
+                    action = np.array(model.predict(x_in))
 
                     diff = runner.distance_right - runner.distance_left
                     distance = runner.get_location().distance(next_waypoint.transform.location)
 
-                    print(diff)
-                    target = [1.0, max(-1.0, min(1.0, 0.3 * diff))]
+                    # target = [
+                    #     max(-1.0, min(1.0, 1.0 - runner.speed_kmh() / 50)),
+                    #     max(-1.0, min(1.0, 0.3 * diff))
+                    # ]
+                    target = max(-1.0, min(1.0, 0.3 * diff))
                     memory.append((state_1, target))
 
-                    runner.throttle = float(action[0])
+                    # runner.throttle = float(action[0])
+                    runner.throttle = 0.3
                     if runner.throttle < 0:
                         runner.brake = -runner.throttle
                         runner.throttle = 0
-                    runner.steer = float(action[1])
-                    if runner.speed_kmh() < 20:
-                        runner.throttle = 1.0
-                        runner.brake = 0.0
+                    runner.steer = float(action[0][0])
+                    # if runner.speed_kmh() < 20:
+                    #     runner.throttle = 1.0
+                    #     runner.brake = 0.0
 
             runner.action()
             # -- Local Planning -- end
@@ -162,18 +167,24 @@ try:
                     world.server_clock.get_fps()
                 ), (280, 450))
             world.redraw_display()
+            # world.clock.tick_busy_loop(60.0)
             # -- Rendering -- end
         runner.destroy()
 
         print("Memory size:", len(memory))
-        if len(memory) >= 256:
-            for i in range(10):
-                batch = random.sample(memory, 256)
+        print("Running time: %.2fs" % (time.time() - t1))
+        if time.time() - t1 > best_time:
+            best_time = time.time() - t1
+            model.save("best_model_%d.h5" % best_time)
+
+        if len(memory) >= 128:
+            for i in range(30):
+                batch = random.sample(memory, 128)
                 state, target = zip(*batch)
                 state = np.array(state)
                 target = np.array(target)
                 loss = model.train_on_batch(state, target)
-                print(loss)
+                print(i + 1, "/ 30", loss)
             model.save(model_path)
 
 except Exception as e:
