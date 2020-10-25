@@ -3,6 +3,7 @@ from tensorflow.keras import models, layers, activations, optimizers, losses, me
 import os
 from collections import deque
 import cv2
+import random
 # import tensorflow as tf
 # physical_devices = tf.config.experimental.list_physical_devices("GPU")
 # tf.config.experimental.set_memory_growth(physical_devices[0], True)
@@ -13,22 +14,19 @@ if os.path.exists(model_path):
 else:
     x_in = layers.Input((120, 160, 3))
     x = x_in
-    x = layers.Conv2D(32, (3, 3), (1, 1), "same", activation=activations.relu)(x)
+    x = layers.Conv2D(32, (5, 5), (1, 1), "same", activation=activations.relu)(x)
     x = layers.BatchNormalization()(x)
     x = layers.MaxPooling2D((2, 2))(x)
     x = layers.Conv2D(64, (3, 3), (1, 1), "same", activation=activations.relu)(x)
     x = layers.BatchNormalization()(x)
-    x = layers.MaxPooling2D((2, 2))(x)
-    x = layers.Conv2D(96, (3, 3), (1, 1), "same", activation=activations.relu)(x)
-    x = layers.BatchNormalization()(x)
     x = layers.GlobalAveragePooling2D()(x)
-    throttle_out = layers.Dense(1, activation=activations.sigmoid)(x)
+    throttle_out = layers.Dense(1, activation=activations.tanh)(x)
     steer_out = layers.Dense(1, activation=activations.tanh)(x)
     model = models.Model(x_in, [throttle_out, steer_out])
+    # model = models.Model(x_in, steer_out)
 model.compile(
     optimizer=optimizers.Adam(),
-    loss=[losses.mse, losses.mse],
-    metrics=[metrics.mean_squared_error]
+    loss=[losses.mse, losses.mse]
 )
 
 try:
@@ -41,6 +39,7 @@ try:
     # frame = world.carla_world.apply_settings(settings)
 
     lap_speed = 0
+    memory = deque(maxlen=1000)  # For DQN pilot -- replay memory
     while not world.is_done:
         runner = Vehicle(world, "runner", bp_filter="vehicle.tesla.model3", debug=False)
         # box = carla.BoundingBox(
@@ -69,7 +68,6 @@ try:
         t1 = time.time()
         e0: float = 0.0                 # For PID pilot -- preview error
         en: float = 0.0                 # For PID pilot -- summary error
-        memory = deque(maxlen=10000)    # For DQN pilot -- replay memory
         states = deque(maxlen=3)        # For DQN pilot -- input state
         while not runner.has_collided and not world.is_done:
             events = world.key_handler()
@@ -128,16 +126,21 @@ try:
                     x_in = np.reshape(state_1, (1, 120, 160, 3))
                     action = np.array(model.predict(x_in))[:, 0, 0]
 
-                    yaw1 = calc_yaw(runner.get_location(), next_waypoint.transform.location)
-                    yaw2 = calc_vehicle_yaw(runner)
-                    diff = calc_yaw_diff(yaw1, yaw2)
+                    diff = runner.distance_right - runner.distance_left
                     distance = runner.get_location().distance(next_waypoint.transform.location)
 
-                    target = [1 - runner.speed_kmh() / 40, action[1] + 0.9 * diff]
+                    print(diff)
+                    target = [1.0, max(-1.0, min(1.0, 0.3 * diff))]
                     memory.append((state_1, target))
 
                     runner.throttle = float(action[0])
+                    if runner.throttle < 0:
+                        runner.brake = -runner.throttle
+                        runner.throttle = 0
                     runner.steer = float(action[1])
+                    if runner.speed_kmh() < 20:
+                        runner.throttle = 1.0
+                        runner.brake = 0.0
 
             runner.action()
             # -- Local Planning -- end
@@ -162,14 +165,15 @@ try:
             # -- Rendering -- end
         runner.destroy()
 
-        if len(memory) >= 512:
-            import random
-            batch = random.sample(memory, 512)
-            state, target = zip(*batch)
-            state = np.array(state)
-            target = np.array(target)
-            loss = model.train_on_batch(state, target)
-            print(loss)
+        print("Memory size:", len(memory))
+        if len(memory) >= 256:
+            for i in range(10):
+                batch = random.sample(memory, 256)
+                state, target = zip(*batch)
+                state = np.array(state)
+                target = np.array(target)
+                loss = model.train_on_batch(state, target)
+                print(loss)
             model.save(model_path)
 
 except Exception as e:
