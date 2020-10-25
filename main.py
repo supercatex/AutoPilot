@@ -3,7 +3,9 @@ from tensorflow.keras import models, layers, activations, optimizers, losses, me
 import os
 from collections import deque
 import cv2
-
+# import tensorflow as tf
+# physical_devices = tf.config.experimental.list_physical_devices("GPU")
+# tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 model_path = "model.h5"
 if os.path.exists(model_path):
@@ -160,9 +162,9 @@ try:
             # -- Rendering -- end
         runner.destroy()
 
-        if len(memory) >= 128:
+        if len(memory) >= 512:
             import random
-            batch = random.sample(memory, 128)
+            batch = random.sample(memory, 512)
             state, target = zip(*batch)
             state = np.array(state)
             target = np.array(target)
