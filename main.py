@@ -1,54 +1,34 @@
 from helper import *
-from tensorflow.keras import models, layers, activations, optimizers, losses, metrics
+from tensorflow.keras import models
 import os
 from collections import deque
 import cv2
-import random
-# import tensorflow as tf
-# physical_devices = tf.config.experimental.list_physical_devices("GPU")
-# tf.config.experimental.set_memory_growth(physical_devices[0], True)
+import pickle
+from datetime import datetime
 
-model_path = "model.h5"
+client_fps = 20.0
+pilot_mode = Vehicle.PID_PILOT
+is_save_memory = True
+
+in_shape = (60, 80, 3)
+model_dir = "./models"
+model_name = "model"
+model_path = os.path.join(model_dir, model_name + ".h5")
+model = None
 if os.path.exists(model_path):
     model = models.load_model(model_path)
-else:
-    x_in = layers.Input((120, 160, 3))
-    x = x_in
-    x = layers.Conv2D(32, (5, 5), (1, 1), "same", activation=activations.relu)(x)
-    x = layers.BatchNormalization()(x)
-    x = layers.MaxPooling2D((2, 2))(x)
-    x = layers.Conv2D(64, (3, 3), (1, 1), "same", activation=activations.relu)(x)
-    x = layers.BatchNormalization()(x)
-    x = layers.GlobalAveragePooling2D()(x)
-    # throttle_out = layers.Dense(1, activation=activations.tanh)(x)
-    steer_out = layers.Dense(1, activation=activations.tanh)(x)
-    # model = models.Model(x_in, [throttle_out, steer_out])
-    model = models.Model(x_in, steer_out)
-model.compile(
-    optimizer=optimizers.Adam(),
-    loss=losses.mse
-)
 
 try:
     client = carla.Client("127.0.0.1", 2000)
     client.set_timeout(5.0)
 
     world = World(client, "road_race_1", (640, 480))
-    # time.sleep(3.0)
-    # settings = carla.WorldSettings(synchronous_mode=True, no_rendering_mode=False, fixed_delta_seconds=1.0/30)
-    # frame = world.carla_world.apply_settings(settings)
 
     lap_speed = 0
-    memory = deque(maxlen=5000)  # For DQN pilot -- replay memory
-    best_time = 22
+    memory = deque(maxlen=100)  # For DQN pilot -- replay memory
     while not world.is_done:
         runner = Vehicle(world, "runner", bp_filter="vehicle.tesla.model3", debug=False)
-        # box = carla.BoundingBox(
-        #     runner.get_transform().location,
-        #     carla.Vector3D(2, 2, 2)
-        # )
-        # world.draw_box(box, runner.get_transform().rotation, 0.5, life_time=60)
-        runner.auto_pilot = Vehicle.DQN_PILOT
+        runner.auto_pilot = pilot_mode
 
         # -- PID pilot Global Planning -- begin
         waypoint_distance: float = 2.0
@@ -67,9 +47,9 @@ try:
         # -- PID pilot Global Planning -- end
 
         t1 = time.time()
-        e0: float = 0.0                 # For PID pilot -- preview error
-        en: float = 0.0                 # For PID pilot -- summary error
-        states = deque(maxlen=3)        # For DQN pilot -- input state
+        e0: float = 0.0                     # For PID pilot -- preview error
+        en: float = 0.0                     # For PID pilot -- summary error
+        state = deque(maxlen=in_shape[2])   # For remember game state.
         while not runner.has_collided and not world.is_done:
             events = world.key_handler()
             runner.key_handler(events)
@@ -89,7 +69,8 @@ try:
             if runner.auto_pilot == Vehicle.PID_PILOT:
                 # -- Local Planning -- begin
                 n_future = 20
-                kp, ki, kd, kf = 1.2, 0.0005, 10.0, 0.00075
+                # kp, ki, kd, kf = 1.2, 0.0005, 10.0, 0.00075
+                kp, ki, kd, kf = 1.2, 0.0003, 5.0, 0.00195
                 yaw1 = calc_yaw(runner.get_location(), next_waypoint.transform.location)
                 yaw2 = calc_vehicle_yaw(runner)
                 e1 = calc_yaw_diff(yaw1, yaw2)
@@ -104,51 +85,64 @@ try:
                 if runner.throttle < 0:
                     runner.brake = -runner.throttle
                     runner.throttle = 0
-                # if runner.throttle < 0.5 and runner.speed_kmh() < 20:
-                #     runner.throttle = 1
-                #     runner.brake = 0
-                # if runner.speed_kmh() > 45:
-                #     runner.throttle = 0
-                #     runner.brake = 0.1
                 e0 = e1
                 en = max(-100.0, min(100.0, en + e1))
+                # -- Local Planning -- end
             elif runner.auto_pilot == Vehicle.DQN_PILOT:
-                img = runner.rgb_image.swapaxes(0, 1)
-                img = cv2.resize(img, (160, 120))
-                img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-                img = np.array(img, dtype=np.float) / 255
-                states.append(img)
-
-                if len(states) == 3:
-                    state_1 = np.ones((120, 160, 3))
-                    state_1[:, :, 0] *= states[0]
-                    state_1[:, :, 1] *= states[1]
-                    state_1[:, :, 2] *= states[2]
-                    x_in = np.reshape(state_1, (1, 120, 160, 3))
-                    action = np.array(model.predict(x_in))
-
-                    diff = runner.distance_right - runner.distance_left
-                    distance = runner.get_location().distance(next_waypoint.transform.location)
-
+                if len(memory) > 0:
+                    s = memory[-1]
+                    x_in = np.reshape(s[0], (1,) + in_shape)
+                    action = np.array(model.predict(x_in))[:, 0, 0]
+                    print(action)
+                    runner.throttle = float(action[0])
+                    runner.steer = float(action[1])
+                    runner.brake = float(action[2])
+                    # x_in = np.reshape(state_1, (1, 120, 160, 3))
+                    # action = np.array(model.predict(x_in))
+                    #
+                    # diff = runner.distance_right - runner.distance_left
+                    # distance = runner.get_location().distance(next_waypoint.transform.location)
+                    #
                     # target = [
                     #     max(-1.0, min(1.0, 1.0 - runner.speed_kmh() / 50)),
                     #     max(-1.0, min(1.0, 0.3 * diff))
                     # ]
-                    target = max(-1.0, min(1.0, 0.3 * diff))
-                    memory.append((state_1, target))
-
+                    # target = max(-1.0, min(1.0, 0.3 * diff))
+                    # memory.append((state_1, target))
+                    #
                     # runner.throttle = float(action[0])
-                    runner.throttle = 0.3
-                    if runner.throttle < 0:
-                        runner.brake = -runner.throttle
-                        runner.throttle = 0
-                    runner.steer = float(action[0][0])
-                    # if runner.speed_kmh() < 20:
-                    #     runner.throttle = 1.0
-                    #     runner.brake = 0.0
+                    # runner.throttle = 0.3
+                    # if runner.throttle < 0:
+                    #     runner.brake = -runner.throttle
+                    #     runner.throttle = 0
+                    # runner.steer = float(action[0][0])
+                    if runner.speed_kmh() < 5:
+                        runner.throttle = 1.0
+                        runner.brake = 0.0
 
+            # -- Remember game states -- begin
+            img = runner.rgb_image.swapaxes(0, 1)
+            img = cv2.resize(img, (in_shape[1], in_shape[0]))
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+            img = np.array(img, dtype=np.float32) / 255
+            state.append(img)
+
+            if len(state) == state.maxlen:
+                s = np.ones(img.shape[:2] + (len(state),), dtype=np.float32)
+                for i in range(len(state)):
+                    s[:, :, i] *= state[i]
+                memory.append((s, float(runner.throttle), float(runner.steer), float(runner.brake)))
+
+            if is_save_memory and len(memory) == memory.maxlen:
+                if not os.path.exists("./data"):
+                    os.mkdir("./data")
+                f = open(os.path.join("./data", "data-%s.pickle" % datetime.now().strftime("%Y%m%d%H%M%S")), "wb")
+                pickle.dump(memory, f)
+                f.close()
+                memory.clear()
+
+            # -- Remember game states -- end
             runner.action()
-            # -- Local Planning -- end
 
             # -- Rendering -- begin
             world.render_image(runner.rgb_image)
@@ -166,26 +160,26 @@ try:
                     world.clock.get_fps(),
                     world.server_clock.get_fps()
                 ), (280, 450))
-            world.redraw_display()
+            world.redraw_display(client_fps)
             # world.clock.tick_busy_loop(60.0)
             # -- Rendering -- end
         runner.destroy()
 
-        print("Memory size:", len(memory))
-        print("Running time: %.2fs" % (time.time() - t1))
-        if time.time() - t1 > best_time:
-            best_time = time.time() - t1
-            model.save("best_model_%d.h5" % best_time)
-
-        if len(memory) >= 128:
-            for i in range(30):
-                batch = random.sample(memory, 128)
-                state, target = zip(*batch)
-                state = np.array(state)
-                target = np.array(target)
-                loss = model.train_on_batch(state, target)
-                print(i + 1, "/ 30", loss)
-            model.save(model_path)
+        # print("Memory size:", len(memory))
+        # print("Running time: %.2fs" % (time.time() - t1))
+        # if time.time() - t1 > best_time:
+        #     best_time = time.time() - t1
+        #     model.save("best_model_%d.h5" % best_time)
+        #
+        # if len(memory) >= 128:
+        #     for i in range(30):
+        #         batch = random.sample(memory, 128)
+        #         state, target = zip(*batch)
+        #         state = np.array(state)
+        #         target = np.array(target)
+        #         loss = model.train_on_batch(state, target)
+        #         print(i + 1, "/ 30", loss)
+        #     model.save(model_path)
 
 except Exception as e:
     print(e)
