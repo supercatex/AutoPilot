@@ -133,27 +133,36 @@ class FollowAgent(Agent):
         self.pre_error_2 = 0.0
 
     def step(self, **kwargs):
-        v1: Vehicle = kwargs.get("v1")
-        v2: Vehicle = kwargs.get("v2")
+        v: Vehicle = kwargs.get("v")
+        waypoints = kwargs.get("waypoints")
 
-        yaw1 = calc_vehicle_yaw(v1)
-        yaw2 = calc_vehicle_yaw(v2)
+        if len(waypoints) == 0:
+            self.throttle = 0.0
+            self.brake = 1.0
+            return
+
+        yaw1 = calc_yaw(v.get_location(), waypoints[1].transform.location)
+        yaw2 = calc_vehicle_yaw(v)
         self.cur_error_1 = calc_yaw_diff(yaw1, yaw2)
-        print(self.cur_error_1)
 
         self.steer = self.kp_1 * self.cur_error_1
         self.steer += self.ki_1 * self.sum_error_1
         self.steer += self.kd_1 * (self.cur_error_1 - self.pre_error_1)
         self.steer = max(-1.0, min(1.0, self.steer))
 
-        self.cur_error_2 = v1.get_location().distance(v2.get_location()) - self.distance
+        self.cur_error_2 = 0.0
+        for i in range(len(waypoints) - 1):
+            self.cur_error_2 += waypoints[i].transform.location.distance(waypoints[i + 1].transform.location)
+        self.cur_error_2 -= self.distance
+
         self.throttle = self.kp_2 * self.cur_error_2
         self.throttle += self.ki_2 * self.sum_error_2
         self.throttle += self.kd_2 * (self.cur_error_2 - self.pre_error_2)
         self.throttle = min(1.0, self.throttle)
-        if self.throttle < 0:
+        self.brake = 0.0
+        if self.throttle < 0.0:
             self.brake = -self.throttle
-            self.throttle = 0
+            self.throttle = 0.0
 
         self.sum_error_1 = max(-100.0, min(100.0, self.sum_error_1 + self.cur_error_1))
         self.pre_error_1 = self.cur_error_1

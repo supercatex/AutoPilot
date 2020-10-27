@@ -40,7 +40,7 @@ try:
         # -- Global Planning -- end
 
         t1 = time.time()
-        while not runner.has_collided and not world.is_done:
+        while not world.is_done:# and not runner.has_collided:
             # -- Key events -- begin
             events = world.key_handler()
             runner.key_handler(events)
@@ -55,7 +55,7 @@ try:
             if curr_waypoint_index == len(waypoints) - 1 and time.time() - t1 > 1:
                 lap_speed = time.time() - t1
                 print("%.2fs" % lap_speed)
-                break
+                # break
             # -- Select the target waypoint -- end
 
             # -- Camera snapshot -- begin
@@ -69,20 +69,35 @@ try:
             # -- Agent running step -- begin
             if runner.auto_pilot == Vehicle.NO_PILOT:
                 if agent is None:
-                    agent = Agent()
+                    # agent = Agent()
+                    agent = PIDAgent(1.3, 0.0002, 3.0, 0.00195, data_dir, data_batch_size)
+                agent.step(v=runner, waypoints=waypoints, cur_index=curr_waypoint_index, n_future=20)
+                # agent.step(v=runner)
+
                 if agent_2 is None:
-                    agent_2 = FollowAgent(-1.0, 0.0, 0.0, 0.2, 0.00001, 15.0, 3.0)
+                    agent_2 = FollowAgent(1.3, 0.0002, 3.0, 0.1, 0.0000005, 3.0, 5.0)
                 if follower is None:
                     curr_waypoint_index = (curr_waypoint_index + 3) % len(waypoints)
                     w = waypoints[curr_waypoint_index]
                     # runner.actor.set_location(w.transform.location)
                     runner.actor.set_transform(w.transform)
                     follower = Vehicle(world, "follower", bp_filter="vehicle.*", start_tf=runner.start_tf, debug=False)
-                agent.step(v=runner)
-                agent_2.step(v1=follower, v2=runner)
+                runner_idx = int(np.argmin([w.transform.location.distance(runner.get_location()) for w in waypoints]))
+                idx = np.argmin([w.transform.location.distance(follower.get_location()) for w in waypoints])
+                ws = []
+                while idx != runner_idx:
+                    ws.append(waypoints[idx])
+                    world.draw_string(
+                        waypoints[idx].transform.location,
+                        "O",
+                        color=(0, 255, 0)
+                    )
+                    idx = (idx + 1) % len(waypoints)
+                agent_2.step(v=follower, waypoints=ws)
                 follower.throttle = agent_2.throttle
                 follower.steer = agent_2.steer
                 follower.brake = agent_2.brake
+                print(follower.throttle, follower.steer, follower.brake)
                 follower.action()
 
             if runner.auto_pilot == Vehicle.PID_PILOT:
@@ -142,10 +157,12 @@ try:
             # -- Action -- end
 
             # -- Rendering -- begin
-            if runner.auto_pilot == Vehicle.NO_PILOT:
-                world.render_image(follower.rgb_image)
-            else:
-                world.render_image(runner.rgb_image)
+            img = runner.rgb_image.copy()
+            if follower is not None:
+                tmp = follower.rgb_image
+                tmp = cv2.resize(tmp, (180, 240))
+                img[400:, 300:, :] = tmp
+            world.render_image(img)
 
             world.render_text("Speed: %.2fkm/h" % runner.speed_kmh(), (10, 10))
             world.render_text("L: %.2f, R: %.2f" % (runner.distance_left, runner.distance_right), (10, 30))
