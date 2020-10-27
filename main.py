@@ -54,6 +54,7 @@ try:
             world.draw_string(next_waypoint.transform.location, "X")
             if curr_waypoint_index == len(waypoints) - 1 and time.time() - t1 > 1:
                 lap_speed = time.time() - t1
+                t1 = time.time()
                 print("%.2fs" % lap_speed)
                 # break
             # -- Select the target waypoint -- end
@@ -70,12 +71,12 @@ try:
             if runner.auto_pilot == Vehicle.NO_PILOT:
                 if agent is None:
                     # agent = Agent()
-                    agent = PIDAgent(1.3, 0.0002, 3.0, 0.00195, data_dir, data_batch_size)
+                    agent = PIDAgent(1.3, 0.0002, 3.0, 0.00055, data_dir, data_batch_size)
                 agent.step(v=runner, waypoints=waypoints, cur_index=curr_waypoint_index, n_future=20)
                 # agent.step(v=runner)
 
                 if agent_2 is None:
-                    agent_2 = FollowAgent(1.3, 0.0002, 3.0, 0.05, 0.0000003, 3.0, 5.0)
+                    agent_2 = FollowAgent(1.3, 0.0002, 3.0, 0.05, 0.0000003, 5.0, 5.0)
                 if follower is None:
                     curr_waypoint_index = (curr_waypoint_index + 3) % len(waypoints)
                     w = waypoints[curr_waypoint_index]
