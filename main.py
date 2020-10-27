@@ -75,7 +75,7 @@ try:
                 # agent.step(v=runner)
 
                 if agent_2 is None:
-                    agent_2 = FollowAgent(1.3, 0.0002, 3.0, 0.1, 0.0000005, 3.0, 5.0)
+                    agent_2 = FollowAgent(1.3, 0.0002, 3.0, 0.05, 0.0000003, 3.0, 5.0)
                 if follower is None:
                     curr_waypoint_index = (curr_waypoint_index + 3) % len(waypoints)
                     w = waypoints[curr_waypoint_index]
