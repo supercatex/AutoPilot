@@ -3,8 +3,8 @@ from agents import *
 
 
 client_fps = 20.0
-pilot_mode = Vehicle.PID_PILOT
-data_dir = None         # Only PID pilot
+pilot_mode = Vehicle.BC_PILOT
+data_dir = "./data"         # Only PID pilot
 data_batch_size = 100   # Only PID pilot
 in_shape = (60, 80, 1)
 agent = None
@@ -71,13 +71,18 @@ try:
                     if client_fps >= 60.0:
                         agent = PIDAgent(1.2, 0.0005, 10.0, 0.00075, data_dir, data_batch_size)
                     else:
-                        agent = PIDAgent(1.2, 0.0003, 5.0, 0.00195, data_dir, data_batch_size)
+                        agent = PIDAgent(1.3, 0.0002, 3.0, 0.00195, data_dir, data_batch_size)
                 agent.step(v=runner, waypoints=waypoints, cur_index=curr_waypoint_index, n_future=20)
+                for i in range(20):
+                    world.draw_string(
+                        waypoints[(curr_waypoint_index + i) % len(waypoints)].transform.location,
+                        "O", color=(255, 255, 0)
+                    )
                 agent.add_record(img)
 
-            if runner.auto_pilot == Vehicle.CNN_PILOT:
+            if runner.auto_pilot == Vehicle.BC_PILOT:
                 if agent is None:
-                    agent = CNNAgent("cnn_model", "model_best")
+                    agent = BCAgent("bc_model", "model_best")
                 agent.step(s=img)
 
             if runner.auto_pilot == Vehicle.DQN_PILOT:

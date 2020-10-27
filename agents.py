@@ -45,7 +45,7 @@ class PIDAgent(Agent):
         self.cur_error = calc_yaw_diff(yaw1, yaw2)
         self.future_error = max_yaw_diff_in_the_future(waypoints, cur_index, n_future)
 
-        self.throttle = min(1.0, 1.0 - self.kf * self.future_error * v.speed_kmh() ** 2)
+        self.throttle = max(0.0, min(1.0, 1.0 - self.kf * self.future_error * v.speed_kmh() ** 2))
 
         self.steer = self.kp * self.cur_error
         self.steer += self.ki * self.sum_error
@@ -70,9 +70,9 @@ class PIDAgent(Agent):
             self.records.clear()
 
 
-class CNNAgent(Agent):
+class BCAgent(Agent):
     def __init__(self, model_dir, model_name):
-        super(CNNAgent, self).__init__()
+        super(BCAgent, self).__init__()
         self.model_dir = model_dir
         self.model_name = model_name
         self.model_path = os.path.join(model_dir, model_name + ".h5")
@@ -82,8 +82,9 @@ class CNNAgent(Agent):
         s = kwargs.get("s")
         s = np.reshape(s, (1,) + s.shape)
         a = self.model.predict(s)
-        self.throttle = 0.3
-        self.steer = float(a[0][0])
+        print(a)
+        self.throttle = float(a[0][0][0])
+        self.steer = float(a[1][0][0])
         self.brake = 0.0
 
 

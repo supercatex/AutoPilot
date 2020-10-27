@@ -8,7 +8,7 @@ import pickle
 from datetime import datetime
 
 in_shape = (60, 80, 1)
-model_dir = "./models"
+model_dir = "./bc_model"
 model_name = "model"
 model_path = os.path.join(model_dir, model_name + ".h5")
 if os.path.exists(model_path):
@@ -25,34 +25,26 @@ else:
     x = layers.BatchNormalization()(x)
     x = layers.Conv2D(128, (3, 3), (1, 1), "same", activation=activations.relu)(x)
     x = layers.BatchNormalization()(x)
-    x = layers.Conv2D(128, (3, 3), (1, 1), "same", activation=activations.relu)(x)
-    x = layers.BatchNormalization()(x)
     x = layers.GlobalAveragePooling2D()(x)
 
     x1 = x
+    x1 = layers.Dense(64, activation=activations.relu)(x1)
     throttle_out = layers.Dense(1, activation=activations.sigmoid, name="throttle")(x1)
 
     x2 = x
+    x2 = layers.Dense(64, activation=activations.relu)(x2)
     steer_out = layers.Dense(1, activation=activations.tanh, name="steer")(x2)
 
     # x3 = x
-    # x3 = layers.Conv2D(64, (5, 5), (1, 1), "same", activation=activations.relu)(x3)
-    # x3 = layers.BatchNormalization()(x3)
-    # x3 = layers.Conv2D(128, (3, 3), (1, 1), "same", activation=activations.relu)(x3)
-    # x3 = layers.BatchNormalization()(x3)
-    # x3 = layers.Conv2D(128, (3, 3), (1, 1), "same", activation=activations.relu)(x3)
-    # x3 = layers.BatchNormalization()(x3)
-    # x3 = layers.GlobalAveragePooling2D()(x3)
     # brake_out = layers.Dense(1, activation=activations.sigmoid, name="brake")(x3)
 
     model = models.Model(x_in_1, [throttle_out, steer_out])
     if not os.path.exists(model_dir):
         os.mkdir(model_dir)
     plot_model(model, os.path.join(model_dir, model_name + ".png"), show_shapes=True)
-    model.save(model_path)
 model.compile(
     optimizer=optimizers.Adam(),
-    loss=[losses.mse, losses.mse, losses.mse]
+    loss=[losses.mse, losses.mse]
 )
 
 print("Loading data...")
@@ -68,13 +60,13 @@ for i, name in enumerate(filenames):
 data = np.array(data)
 
 x1 = data[:, 0]
-x1 = np.array([np.array(d, dtype=np.float32) for d in x1])
+x1 = np.array([np.array(s, dtype=np.float32) for s in x1])
 x2 = np.array(data[:, 1], dtype=np.float32)
 x = x1
-y = np.array(data[:, 3], dtype=np.float32)
+y = np.array(data[:, 1:3], dtype=np.float32)
 
 cb_tensorboard = TensorBoard(log_dir="./logs/%s" % datetime.now().strftime("%Y%m%d%H%M%S"))
-cb_reduceLR = ReduceLROnPlateau(monitor="loss", factor=0.5, min_lr=0.00001, patience=5, verbose=1)
+cb_reduceLR = ReduceLROnPlateau(monitor="loss", factor=0.5, min_lr=0.000001, patience=5, verbose=1)
 cb_early_stop = EarlyStopping(monitor="loss", patience=10, verbose=1)
 cb_check_point = ModelCheckpoint(os.path.join(model_dir, model_name + "_best.h5"), "loss", save_best_only=True, verbose=1)
 callbacks = [cb_tensorboard, cb_reduceLR, cb_early_stop, cb_check_point]
