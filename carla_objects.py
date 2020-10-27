@@ -109,6 +109,7 @@ class Vehicle(object):
                  role_name: str,
                  color: str = "0.0, 255.0, 0.0",
                  bp_filter: str = "vehicle.*",
+                 start_tf: carla.Transform = None,
                  debug: bool = False):
         self.world: World = world
         self.role_name: str = role_name
@@ -125,9 +126,11 @@ class Vehicle(object):
         bp = np.random.choice(bps)
         bp.set_attribute("role_name", role_name)
         bp.set_attribute("color", color)
-        tf: carla.Transform = np.random.choice(spawn_points)
-        tf.location.z = 1.0
-        self.actor: carla.Actor = self.carla_world.spawn_actor(bp, tf)
+        self.start_tf: carla.Transform = np.random.choice(spawn_points)
+        self.start_tf.location.z = 1.0
+        if start_tf is not None:
+            self.start_tf = start_tf
+        self.actor: carla.Actor = self.carla_world.spawn_actor(bp, self.start_tf)
 
         bp = bp_lib.find("sensor.camera.rgb")
         bp.set_attribute("image_size_x", "640")

@@ -3,12 +3,13 @@ from agents import *
 
 
 client_fps = 20.0
-pilot_mode = Vehicle.BC_PILOT
+pilot_mode = Vehicle.NO_PILOT
 data_dir = "./data"         # Only PID pilot
 data_batch_size = 100   # Only PID pilot
 in_shape = (60, 80, 1)
 agent = None
-
+agent_2 = None
+follower = None
 
 try:
     client = carla.Client("127.0.0.1", 2000)
@@ -66,6 +67,24 @@ try:
             # -- Camera snapshot -- end
 
             # -- Agent running step -- begin
+            if runner.auto_pilot == Vehicle.NO_PILOT:
+                if agent is None:
+                    agent = Agent()
+                if agent_2 is None:
+                    agent_2 = FollowAgent(-1.0, 0.0, 0.0, 0.2, 0.00001, 15.0, 3.0)
+                if follower is None:
+                    curr_waypoint_index = (curr_waypoint_index + 3) % len(waypoints)
+                    w = waypoints[curr_waypoint_index]
+                    # runner.actor.set_location(w.transform.location)
+                    runner.actor.set_transform(w.transform)
+                    follower = Vehicle(world, "follower", bp_filter="vehicle.*", start_tf=runner.start_tf, debug=False)
+                agent.step(v=runner)
+                agent_2.step(v1=follower, v2=runner)
+                follower.throttle = agent_2.throttle
+                follower.steer = agent_2.steer
+                follower.brake = agent_2.brake
+                follower.action()
+
             if runner.auto_pilot == Vehicle.PID_PILOT:
                 if agent is None:
                     if client_fps >= 60.0:
@@ -123,7 +142,10 @@ try:
             # -- Action -- end
 
             # -- Rendering -- begin
-            world.render_image(runner.rgb_image)
+            if runner.auto_pilot == Vehicle.NO_PILOT:
+                world.render_image(follower.rgb_image)
+            else:
+                world.render_image(runner.rgb_image)
 
             world.render_text("Speed: %.2fkm/h" % runner.speed_kmh(), (10, 10))
             world.render_text("L: %.2f, R: %.2f" % (runner.distance_left, runner.distance_right), (10, 30))

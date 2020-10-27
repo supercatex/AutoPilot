@@ -16,7 +16,11 @@ class Agent(object):
         self.reverse = 0.0
 
     def step(self, **kwargs):
-        pass
+        v: Vehicle = kwargs.get("v")
+        self.throttle = v.throttle
+        self.steer = v.steer
+        self.brake = v.brake
+        self.reverse = v.reverse
 
 
 class PIDAgent(Agent):
@@ -109,3 +113,50 @@ class DQNAgent(Agent):
             loss = self.model.train_on_batch(state, target)
             self.model.save(self.model_path)
             return loss
+
+
+class FollowAgent(Agent):
+    def __init__(self, kp_1, ki_1, kd_1, kp_2, ki_2, kd_2, distance):
+        super(FollowAgent, self).__init__()
+        self.kp_1 = kp_1
+        self.ki_1 = ki_1
+        self.kd_1 = kd_1
+        self.kp_2 = kp_2
+        self.ki_2 = ki_2
+        self.kd_2 = kd_2
+        self.distance = distance
+        self.cur_error_1 = 0.0
+        self.sum_error_1 = 0.0
+        self.pre_error_1 = 0.0
+        self.cur_error_2 = 0.0
+        self.sum_error_2 = 0.0
+        self.pre_error_2 = 0.0
+
+    def step(self, **kwargs):
+        v1: Vehicle = kwargs.get("v1")
+        v2: Vehicle = kwargs.get("v2")
+
+        yaw1 = calc_vehicle_yaw(v1)
+        yaw2 = calc_vehicle_yaw(v2)
+        self.cur_error_1 = calc_yaw_diff(yaw1, yaw2)
+        print(self.cur_error_1)
+
+        self.steer = self.kp_1 * self.cur_error_1
+        self.steer += self.ki_1 * self.sum_error_1
+        self.steer += self.kd_1 * (self.cur_error_1 - self.pre_error_1)
+        self.steer = max(-1.0, min(1.0, self.steer))
+
+        self.cur_error_2 = v1.get_location().distance(v2.get_location()) - self.distance
+        self.throttle = self.kp_2 * self.cur_error_2
+        self.throttle += self.ki_2 * self.sum_error_2
+        self.throttle += self.kd_2 * (self.cur_error_2 - self.pre_error_2)
+        self.throttle = min(1.0, self.throttle)
+        if self.throttle < 0:
+            self.brake = -self.throttle
+            self.throttle = 0
+
+        self.sum_error_1 = max(-100.0, min(100.0, self.sum_error_1 + self.cur_error_1))
+        self.pre_error_1 = self.cur_error_1
+
+        self.sum_error_2 = max(-100.0, min(100.0, self.sum_error_2 + self.cur_error_2))
+        self.pre_error_2 = self.cur_error_2
