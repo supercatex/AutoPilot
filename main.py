@@ -96,17 +96,17 @@ try:
                 if runner.has_collided:
                     reward = -100
                     terminate = 1
+                    t2 = time.time()
+                    print("Running time: %.2fs" % (t2 - t1))
+                    if t2 - t1 > best_time:
+                        best_time = t2 - t1
+                        # agent.model.save("best_model_%d.h5" % best_time)
                 agent.memory.append((s0, a0, s1, reward, terminate))
                 # -- Remember game states -- end
 
                 # -- After terminate train min-batch from memory -- begin
                 if terminate:
                     agent.replay()
-
-                    print("Running time: %.2fs" % (time.time() - t1))
-                    if time.time() - t1 > best_time:
-                        best_time = time.time() - t1
-                        # agent.model.save("best_model_%d.h5" % best_time)
                 # -- After terminate train min-batch from memory -- end
             # -- Agent running step -- end
 
