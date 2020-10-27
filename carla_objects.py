@@ -101,7 +101,8 @@ class World(object):
 class Vehicle(object):
     NO_PILOT = 0
     PID_PILOT = 1
-    DQN_PILOT = 2
+    CNN_PILOT = 2
+    DQN_PILOT = 3
 
     def __init__(self,
                  world: World,
