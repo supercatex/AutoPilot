@@ -3,8 +3,8 @@ from agents import *
 
 
 client_fps = 20.0
-pilot_mode = Vehicle.NO_PILOT
-data_dir = "./data"         # Only PID pilot
+pilot_mode = Vehicle.PID_PILOT
+data_dir = None         # Only PID pilot
 data_batch_size = 100   # Only PID pilot
 in_shape = (60, 80, 1)
 agent = None
@@ -106,7 +106,7 @@ try:
                     if client_fps >= 60.0:
                         agent = PIDAgent(1.2, 0.0005, 10.0, 0.00075, data_dir, data_batch_size)
                     else:
-                        agent = PIDAgent(1.3, 0.0002, 3.0, 0.00195, data_dir, data_batch_size)
+                        agent = PIDAgent(1.3, 0.0002, 3.0, 0.00095, data_dir, data_batch_size)
                 agent.step(v=runner, waypoints=waypoints, cur_index=curr_waypoint_index, n_future=20)
                 for i in range(20):
                     world.draw_string(
