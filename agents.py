@@ -30,11 +30,9 @@ class PIDAgent(Agent):
         self.sum_error = 0.0
         self.pre_error = 0.0
         self.future_error = 0.0
-        self.records = []
         self.save_dir = save_dir
-        if save_dir is not None and not os.path.exists(save_dir):
-            os.mkdir(save_dir)
         self.batch_size = batch_size
+        self.records = deque(maxlen=batch_size)
 
     def step(self, **kwargs):
         v: Vehicle = kwargs.get("v")
@@ -60,12 +58,16 @@ class PIDAgent(Agent):
         self.pre_error = self.cur_error
 
     def add_record(self, s):
+        if self.save_dir is None:
+            return
+        if not os.path.exists(self.save_dir):
+            os.mkdir(self.save_dir)
         self.records.append((s, self.throttle, self.steer, self.brake, self.reverse))
-        if self.save_dir is not None and len(self.records) >= self.batch_size:
+        if len(self.records) >= self.batch_size:
             f = open(os.path.join(self.save_dir, "data-%s.pickle" % datetime.now().strftime("%Y%m%d%H%M%S")), "wb")
             pickle.dump(self.records, f)
             f.close()
-            self.records = []
+            self.records.clear()
 
 
 class CNNAgent(Agent):

@@ -3,7 +3,7 @@ from agents import *
 
 
 client_fps = 20.0
-pilot_mode = Vehicle.CNN_PILOT
+pilot_mode = Vehicle.PID_PILOT
 data_dir = None         # Only PID pilot
 data_batch_size = 100   # Only PID pilot
 in_shape = (60, 80, 1)
