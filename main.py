@@ -3,7 +3,7 @@ from agents import *
 
 
 client_fps = 20.0
-pilot_mode = Vehicle.PID_PILOT
+pilot_mode = Vehicle.NO_PILOT
 data_dir = None         # Only PID pilot
 data_batch_size = 100   # Only PID pilot
 in_shape = (60, 80, 1)
@@ -15,7 +15,7 @@ try:
     client = carla.Client("127.0.0.1", 2000)
     client.set_timeout(5.0)
 
-    world = World(client, "road_race_1", (640, 480))
+    world = World(client, "road_race_1", (640, 480), (-100, -50, 85), (-70.0, 0.0, 0.0))
 
     best_time = 0
     lap_speed = 0

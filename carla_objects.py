@@ -10,7 +10,8 @@ class World(object):
                  client: carla.Client,
                  map_name: str = None,
                  screen_size=(640, 480),
-                 camera_pos=(-80, -10, 80)):
+                 camera_pos=(-80, -10, 80),
+                 camera_rot=(0.0, 0.0, 0.0)):
         self.client: carla.Client = client
         self.carla_world: carla.World = client.get_world()
         self.screen_size = screen_size
@@ -29,7 +30,7 @@ class World(object):
         spectator.set_transform(
             carla.Transform(
                 carla.Location(x=camera_pos[0], y=camera_pos[1], z=camera_pos[2]),
-                carla.Rotation(pitch=-90, roll=90)
+                carla.Rotation(pitch=camera_rot[0], yaw=camera_rot[1], roll=camera_rot[2])
             )
         )
 
