@@ -7,7 +7,7 @@ pilot_mode = Vehicle.DQN_PILOT   # Here to change other pilot agent.
 agent = None
 
 in_shape = (60, 80, 1)
-data_dir = None     # Only for PID pilot collect data. (None: no data collection)
+data_dir = None     # Only for PID pilot collect data. (None: no data collection, default: "./data")
 data_batch_size = 100   # Only for PID pilot collect data.
 follow_agent = None     # Only for Follow pilot.
 follower = None         # Only for Follow pilot.
