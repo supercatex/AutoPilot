@@ -3,13 +3,15 @@ from agents import *
 
 
 client_fps = 20.0
-pilot_mode = Vehicle.NO_PILOT
-data_dir = None         # Only PID pilot
-data_batch_size = 100   # Only PID pilot
-in_shape = (60, 80, 1)
+pilot_mode = Vehicle.BC_PILOT
 agent = None
-agent_2 = None
-follower = None
+
+in_shape = (60, 80, 1)
+data_dir = None         # Only for PID pilot collect data. None: no data collection.
+data_batch_size = 100   # Only for PID pilot collect data.
+follow_agent = None     # Only for Follow pilot.
+follower = None         # Only for Follow pilot.
+
 
 try:
     client = carla.Client("127.0.0.1", 2000)
@@ -40,7 +42,7 @@ try:
         # -- Global Planning -- end
 
         t1 = time.time()
-        while not world.is_done:# and not runner.has_collided:
+        while not world.is_done and not runner.has_collided:
             # -- Key events -- begin
             events = world.key_handler()
             runner.key_handler(events)
@@ -70,17 +72,19 @@ try:
             # -- Agent running step -- begin
             if runner.auto_pilot == Vehicle.NO_PILOT:
                 if agent is None:
-                    # agent = Agent()
+                    agent = Agent()
+                agent.step(v=runner)
+
+            if runner.auto_pilot == Vehicle.FOLLOW_PILOT:
+                if agent is None:
                     agent = PIDAgent(1.3, 0.0002, 3.0, 0.00055, data_dir, data_batch_size)
                 agent.step(v=runner, waypoints=waypoints, cur_index=curr_waypoint_index, n_future=20)
-                # agent.step(v=runner)
 
-                if agent_2 is None:
-                    agent_2 = FollowAgent(1.3, 0.0002, 3.0, 0.05, 0.0000003, 5.0, 5.0)
+                if follow_agent is None:
+                    follow_agent = FollowAgent(1.3, 0.0002, 3.0, 0.05, 0.0000003, 5.0, 5.0)
                 if follower is None:
                     curr_waypoint_index = (curr_waypoint_index + 3) % len(waypoints)
                     w = waypoints[curr_waypoint_index]
-                    # runner.actor.set_location(w.transform.location)
                     runner.actor.set_transform(w.transform)
                     follower = Vehicle(world, "follower", bp_filter="vehicle.*", start_tf=runner.start_tf, debug=False)
                 runner_idx = int(np.argmin([w.transform.location.distance(runner.get_location()) for w in waypoints]))
@@ -94,11 +98,10 @@ try:
                         color=(0, 255, 0)
                     )
                     idx = (idx + 1) % len(waypoints)
-                agent_2.step(v=follower, waypoints=ws)
-                follower.throttle = agent_2.throttle
-                follower.steer = agent_2.steer
-                follower.brake = agent_2.brake
-                print(follower.throttle, follower.steer, follower.brake)
+                follow_agent.step(v=follower, waypoints=ws)
+                follower.throttle = follow_agent.throttle
+                follower.steer = follow_agent.steer
+                follower.brake = follow_agent.brake
                 follower.action()
 
             if runner.auto_pilot == Vehicle.PID_PILOT:

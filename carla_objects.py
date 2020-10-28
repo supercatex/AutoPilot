@@ -100,10 +100,11 @@ class World(object):
 
 
 class Vehicle(object):
-    NO_PILOT = 0
-    PID_PILOT = 1
-    BC_PILOT = 2
-    DQN_PILOT = 3
+    NO_PILOT = "Manual"
+    PID_PILOT = "PID Control"
+    BC_PILOT = "Behavior Cloning"
+    FOLLOW_PILOT = "Follow"
+    DQN_PILOT = 4
 
     def __init__(self,
                  world: World,

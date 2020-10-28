@@ -86,9 +86,8 @@ class BCAgent(Agent):
         s = kwargs.get("s")
         s = np.reshape(s, (1,) + s.shape)
         a = self.model.predict(s)
-        print(a)
-        self.throttle = float(a[0][0][0])
-        self.steer = float(a[1][0][0])
+        self.throttle = 0.3
+        self.steer = float(a[0][0])
         self.brake = 0.0
 
 
