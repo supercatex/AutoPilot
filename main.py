@@ -3,7 +3,7 @@ from agents import *
 
 
 client_fps = 20.0
-pilot_mode = Vehicle.BC_PILOT
+pilot_mode = Vehicle.NO_PILOT
 agent = None
 
 in_shape = (60, 80, 1)
@@ -77,7 +77,7 @@ try:
 
             if runner.auto_pilot == Vehicle.FOLLOW_PILOT:
                 if agent is None:
-                    agent = PIDAgent(1.3, 0.0002, 3.0, 0.00055, data_dir, data_batch_size)
+                    agent = PIDAgent(1.3, 0.0002, 3.0, 0.00095, data_dir, data_batch_size)
                 agent.step(v=runner, waypoints=waypoints, cur_index=curr_waypoint_index, n_future=20)
 
                 if follow_agent is None:
