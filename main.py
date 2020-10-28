@@ -124,8 +124,9 @@ try:
                 agent.step(s=img)
 
             if runner.auto_pilot == Vehicle.DQN_PILOT:
+                img = cv2.resize(img, (20, 15))
                 if agent is None:
-                    agent = DQNAgent("./dqn_model", "model_best", in_shape, 128, 10000, 0.99, 1.0)
+                    agent = DQNAgent("./dqn_model", "model_best", (15, 20, 1), 128, 10000, 0.99, 0.1)
                 a1 = agent.step(s=img)
 
                 # -- Remember game states -- begin
@@ -142,6 +143,10 @@ try:
                     terminate = True
                     t2 = time.time()
                     print("Running time: %.2fs" % (t2 - t1))
+                    # f = open("./dqn_model/log.txt", "a")
+                    # f.write(str((t2 - t1)) + "\n")
+                    # f.append(str((t2 - t1)) + "\n")
+                    # f.close()
                     if t2 - t1 > best_time:
                         best_time = t2 - t1
                         agent.model.save(agent.model_path)
@@ -162,26 +167,26 @@ try:
             # -- Action -- end
 
             # -- Rendering -- begin
-            img = runner.rgb_image.copy()
-            if follower is not None:
-                tmp = follower.rgb_image
-                tmp = cv2.resize(tmp, (180, 240))
-                img[400:, 300:, :] = tmp
-            world.render_image(img)
-
-            world.render_text("Speed: %.2fkm/h" % runner.speed_kmh(), (10, 10))
-            world.render_text("L: %.2f, R: %.2f" % (runner.distance_left, runner.distance_right), (10, 30))
-            world.render_text("(W)  Throttle: %.2f" % runner.throttle, (10, 50))
-            world.render_text("(Space) Brake: %.2f" % runner.brake, (10, 70))
-            world.render_text("(A, D)  Steer: %.2f" % runner.steer, (10, 90))
-            world.render_text("(S)   Reverse: %d" % runner.reverse, (10, 110))
-            world.render_text("(P)Auto Pilot: " + str(runner.auto_pilot), (10, 130))
-            world.render_text("Lap speed: %.2fs" % lap_speed, (450, 10))
-            world.render_text(
-                "Client: %.1ffps, Server: %.1ffps" % (
-                    world.clock.get_fps(),
-                    world.server_clock.get_fps()
-                ), (280, 450))
+            # img = runner.rgb_image.copy()
+            # if follower is not None:
+            #     tmp = follower.rgb_image
+            #     tmp = cv2.resize(tmp, (180, 240))
+            #     img[400:, 300:, :] = tmp
+            # world.render_image(img)
+            #
+            # world.render_text("Speed: %.2fkm/h" % runner.speed_kmh(), (10, 10))
+            # world.render_text("L: %.2f, R: %.2f" % (runner.distance_left, runner.distance_right), (10, 30))
+            # world.render_text("(W)  Throttle: %.2f" % runner.throttle, (10, 50))
+            # world.render_text("(Space) Brake: %.2f" % runner.brake, (10, 70))
+            # world.render_text("(A, D)  Steer: %.2f" % runner.steer, (10, 90))
+            # world.render_text("(S)   Reverse: %d" % runner.reverse, (10, 110))
+            # world.render_text("(P)Auto Pilot: " + str(runner.auto_pilot), (10, 130))
+            # world.render_text("Lap speed: %.2fs" % lap_speed, (450, 10))
+            # world.render_text(
+            #     "Client: %.1ffps, Server: %.1ffps" % (
+            #         world.clock.get_fps(),
+            #         world.server_clock.get_fps()
+            #     ), (280, 450))
             world.redraw_display(client_fps)
             # -- Rendering -- end
         runner.destroy()

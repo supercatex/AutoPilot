@@ -108,6 +108,7 @@ class DQNAgent(Agent):
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.99995
         if os.path.exists(self.model_path):
+            print("Loading existed model...")
             self.model = models.load_model(self.model_path)
         else:
             self.model = self.new_model()
