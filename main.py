@@ -7,7 +7,7 @@ pilot_mode = Vehicle.BC_PILOT
 agent = None
 
 in_shape = (60, 80, 1)
-data_dir = None         # Only for PID pilot collect data. None: no data collection.
+data_dir = "./data"     # Only for PID pilot collect data. (None: no data collection)
 data_batch_size = 100   # Only for PID pilot collect data.
 follow_agent = None     # Only for Follow pilot.
 follower = None         # Only for Follow pilot.
