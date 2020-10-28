@@ -3,18 +3,18 @@ from agents import *
 
 
 client_fps = 20.0
-pilot_mode = Vehicle.NO_PILOT
+pilot_mode = Vehicle.DQN_PILOT   # Here to change other pilot agent.
 agent = None
 
 in_shape = (60, 80, 1)
-data_dir = "./data"     # Only for PID pilot collect data. (None: no data collection)
+data_dir = None     # Only for PID pilot collect data. (None: no data collection)
 data_batch_size = 100   # Only for PID pilot collect data.
 follow_agent = None     # Only for Follow pilot.
 follower = None         # Only for Follow pilot.
 
 
 try:
-    client = carla.Client("127.0.0.1", 2000)
+    client = carla.Client("127.0.0.1", 3000)
     client.set_timeout(5.0)
 
     world = World(client, "road_race_1", (640, 480), (-100, -50, 85), (-70.0, 0.0, 0.0))
@@ -38,7 +38,7 @@ try:
 
         for w in waypoints:
             world.draw_string(w.transform.location, "x")
-            time.sleep(0.01)
+            time.sleep(0.0001)
         # -- Global Planning -- end
 
         t1 = time.time()
@@ -120,31 +120,32 @@ try:
 
             if runner.auto_pilot == Vehicle.BC_PILOT:
                 if agent is None:
-                    agent = BCAgent("bc_model", "model_best")
+                    agent = BCAgent("./bc_model", "model_best")
                 agent.step(s=img)
 
             if runner.auto_pilot == Vehicle.DQN_PILOT:
                 if agent is None:
-                    agent = DQNAgent("dqn_model", "model_best", 128, 10000)
-                agent.step(s=img)
+                    agent = DQNAgent("./dqn_model", "model_best", in_shape, 128, 10000, 0.99, 1.0)
+                a1 = agent.step(s=img)
 
                 # -- Remember game states -- begin
                 s0 = [np.zeros(img.shape, dtype=np.float32), 0.0]
-                a0 = [agent.throttle, agent.steer, agent.brake, agent.reverse]
+                a0 = 0
                 if len(agent.memory) > 0:
-                    s0, a0 = agent.memory[-1][2:4]
+                    s0 = agent.memory[-1][2]
+                    a0 = agent.memory[-1][3]
                 s1 = [img, runner.speed_kmh()]
-                reward = runner.speed_kmh()
-                terminate = 0
+                reward = 1
+                terminate = False
                 if runner.has_collided:
-                    reward = -100
-                    terminate = 1
+                    reward = -99999999
+                    terminate = True
                     t2 = time.time()
                     print("Running time: %.2fs" % (t2 - t1))
                     if t2 - t1 > best_time:
                         best_time = t2 - t1
-                        # agent.model.save("best_model_%d.h5" % best_time)
-                agent.memory.append((s0, a0, s1, reward, terminate))
+                        agent.model.save(agent.model_path)
+                agent.memory.append((s0, a0, s1, a1, reward, terminate))
                 # -- Remember game states -- end
 
                 # -- After terminate train min-batch from memory -- begin

@@ -104,7 +104,7 @@ class Vehicle(object):
     PID_PILOT = "PID Control"
     BC_PILOT = "Behavior Cloning"
     FOLLOW_PILOT = "Follow"
-    DQN_PILOT = 4
+    DQN_PILOT = "DQN"
 
     def __init__(self,
                  world: World,

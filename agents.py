@@ -6,6 +6,9 @@ from collections import deque
 import random
 import pickle
 from datetime import datetime
+from tensorflow.keras import models, layers, activations
+from tensorflow.keras import optimizers, losses
+from tensorflow.keras.utils import plot_model
 
 
 class Agent(object):
@@ -92,25 +95,83 @@ class BCAgent(Agent):
 
 
 class DQNAgent(Agent):
-    def __init__(self, model_dir, model_name, batch_size=32, memory_size=10000):
+    def __init__(self, model_dir, model_name, in_shape, batch_size=32, memory_size=10000, gamma=0.99, epsilon=1.0):
         super(DQNAgent, self).__init__()
         self.model_dir = model_dir
         self.model_name = model_name
         self.model_path = os.path.join(model_dir, model_name + ".h5")
+        self.in_shape = in_shape
         self.batch_size = batch_size
         self.memory = deque(maxlen=memory_size)
-        self.model = models.load_model(self.model_path)
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.epsilon_min = 0.01
+        self.epsilon_decay = 0.99995
+        if os.path.exists(self.model_path):
+            self.model = models.load_model(self.model_path)
+        else:
+            self.model = self.new_model()
+        self.model.compile(optimizer=optimizers.Adam(lr=0.01), loss=losses.mse)
+
+    def new_model(self):
+        x_in = layers.Input(self.in_shape, name="1-gray-image")
+        x = x_in
+        x = layers.Conv2D(32, (5, 5), (1, 1), "same", activation=activations.relu)(x)
+        x = layers.BatchNormalization()(x)
+        x = layers.MaxPooling2D((2, 2))(x)
+        x = layers.Conv2D(64, (5, 5), (1, 1), "same", activation=activations.relu)(x)
+        x = layers.BatchNormalization()(x)
+        x = layers.Conv2D(128, (3, 3), (1, 1), "same", activation=activations.relu)(x)
+        x = layers.BatchNormalization()(x)
+        x = layers.GlobalAveragePooling2D()(x)
+        x = layers.Dense(64, activation=activations.relu)(x)
+        out = layers.Dense(3, activation=activations.linear, name="actions")(x)
+        model = models.Model(x_in, out)
+        if not os.path.exists(self.model_dir):
+            os.mkdir(self.model_dir)
+        plot_model(model, os.path.join(self.model_dir, self.model_name + ".png"), show_shapes=True)
+        return model
+
+    def step(self, **kwargs):
+        s = kwargs.get("s")
+        if np.random.rand() <= self.epsilon:
+            a = np.random.randint(0, 3)
+            print("random:", a, ", epsilon:", self.epsilon)
+        else:
+            s = np.reshape(s, (1,) + s.shape)
+            q = self.model.predict(s)
+            print(q)
+            a = np.argmax(q[0])
+
+        self.throttle = 0.3
+        self.steer = 0.0
+        self.brake = 0.0
+        if a == 0:
+            self.steer = -1.0
+        elif a == 1:
+            self.throttle = 0.3
+        else:
+            self.steer = 1.0
+
+        return a
 
     def replay(self):
         if len(self.memory) >= self.batch_size:
             batch = random.sample(self.memory, self.batch_size)
-            s0, a0, s1, reward, terminate = zip(*batch)
-            state = np.array(s0)[:, 0]
-            state = np.array([np.array(s, dtype=np.float32) for s in state])
-            target = np.array([])
-
-            loss = self.model.train_on_batch(state, target)
+            s0, a0, s1, a1, reward, terminate = zip(*batch)
+            s0 = np.array(s0)[:, 0]
+            s0 = np.array([np.array(s, dtype=np.float32) for s in s0])
+            s1 = np.array(s1)[:, 0]
+            s1 = np.array([np.array(s, dtype=np.float32) for s in s1])
+            qv = np.array(self.model.predict(s0))
+            a1 = np.array(self.model.predict(s1))
+            reward = np.array(reward, np.float32)
+            terminate = np.array(terminate, np.bool)
+            qv[range(self.batch_size), a0] = reward + self.gamma * np.max(a1, axis=1) * np.invert(terminate)
+            loss = self.model.train_on_batch(s0, qv)
             self.model.save(self.model_path)
+            if self.epsilon > self.epsilon_min:
+                self.epsilon *= self.epsilon_decay
             return loss
 
 
