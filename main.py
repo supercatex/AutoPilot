@@ -216,27 +216,27 @@ try:
             # -- Rendering -- end
 
         # -- Game Over screen -- begin
-        # img = cv2.imread("bg-index.jpg")
-        # img = cv2.resize(img, (640, 480))
-        # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        # zeros = np.zeros(img.shape, dtype=np.uint8)
-        # zeros = cv2.rectangle(zeros, (0, 120), (640, 360), (255, 255, 255), -1)
-        # img = cv2.addWeighted(img, 1.0, zeros, 0.3, 0.0)
-        # img = np.swapaxes(img, 0, 1)
-        # t2 = time.time()
-        # while not world.is_done:
-        #     events = world.key_handler()
-        #     world.render_image(img)
-        #     if lap_speed > 0:
-        #         world.render_text("Completed!", (50, 140), font_size=48, bold=True, color=(0, 0, 255))
-        #         world.render_text("Lap speed: %.2fs" % lap_speed, (50, 200), font_size=36, bold=True, color=(0, 0, 255))
-        #     else:
-        #         world.render_text("You crashed!", (50, 140), font_size=48, bold=True, color=(255, 0, 0))
-        #         world.render_text("Running time: %.2fs" % (t2 - t1), (50, 200), font_size=36, bold=True, color=(255, 0, 0))
-        #     world.render_text("Press ESC to quit", (370, 365), font_size=24, bold=False, italic=True)
-        #     world.redraw_display(client_fps)
+        img = cv2.imread("bg-index.jpg")
+        img = cv2.resize(img, (640, 480))
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        zeros = np.zeros(img.shape, dtype=np.uint8)
+        zeros = cv2.rectangle(zeros, (0, 120), (640, 360), (255, 255, 255), -1)
+        img = cv2.addWeighted(img, 1.0, zeros, 0.3, 0.0)
+        img = np.swapaxes(img, 0, 1)
+        t2 = time.time()
+        while not world.is_done:
+            events = world.key_handler()
+            world.render_image(img)
+            if lap_speed > 0:
+                world.render_text("Completed!", (50, 140), font_size=48, bold=True, color=(0, 0, 255))
+                world.render_text("Lap speed: %.2fs" % lap_speed, (50, 200), font_size=36, bold=True, color=(0, 0, 255))
+            else:
+                world.render_text("You crashed!", (50, 140), font_size=48, bold=True, color=(255, 0, 0))
+                world.render_text("Running time: %.2fs" % (t2 - t1), (50, 200), font_size=36, bold=True, color=(255, 0, 0))
+            world.render_text("Press ESC to quit", (370, 365), font_size=24, bold=False, italic=True)
+            world.redraw_display(client_fps)
         # -- Game Over screen -- end
-        # world.is_done = False
+        world.is_done = False
         # follower = None
         runner.destroy()
         # world.destroy_actors()
