@@ -12,11 +12,14 @@ from tensorflow.keras.utils import plot_model
 
 
 class Agent(object):
-    def __init__(self):
+    def __init__(self, save_dir="./data", batch_size=500):
         self.throttle = 0.0
         self.steer = 0.0
         self.brake = 0.0
         self.reverse = 0.0
+        self.save_dir = save_dir
+        self.batch_size = batch_size
+        self.records = deque(maxlen=self.batch_size)
 
     def step(self, **kwargs):
         v: Vehicle = kwargs.get("v")
@@ -24,6 +27,18 @@ class Agent(object):
         self.steer = v.steer
         self.brake = v.brake
         self.reverse = v.reverse
+
+    def add_record(self, s):
+        if self.save_dir is None:
+            return
+        if not os.path.exists(self.save_dir):
+            os.mkdir(self.save_dir)
+        self.records.append((s, self.throttle, self.steer, self.brake, self.reverse))
+        if len(self.records) >= self.batch_size:
+            f = open(os.path.join(self.save_dir, "data-%s.pickle" % datetime.now().strftime("%Y%m%d%H%M%S")), "wb")
+            pickle.dump(self.records, f)
+            f.close()
+            self.records.clear()
 
 
 class PIDAgent(Agent):
@@ -88,10 +103,14 @@ class BCAgent(Agent):
     def step(self, **kwargs):
         s = kwargs.get("s")
         s = np.reshape(s, (1,) + s.shape)
-        a = self.model.predict(s)
+        a = np.argmax(self.model.predict(s), axis=1)
         self.throttle = 0.3
-        self.steer = float(a[0][0])
+        self.steer = 0.0
         self.brake = 0.0
+        if a == 0:
+            self.steer = -1.0
+        elif a == 2:
+            self.steer = 1.0
 
 
 class DQNAgent(Agent):
@@ -113,11 +132,12 @@ class DQNAgent(Agent):
         else:
             self.model = self.new_model()
         self.model.compile(optimizer=optimizers.Adam(lr=0.01), loss=losses.mse)
-
+        for i in range(1, 6):
+            self.model.layers[i].trainable = False
         self.model2 = self.new_model()
         self.model2.set_weights(self.model.get_weights())
         self.steps = 0
-        self.replace_iter = 1000
+        self.replace_iter = 10
 
     def new_model(self):
         x_in = layers.Input(self.in_shape, name="1-gray-image")
@@ -133,6 +153,12 @@ class DQNAgent(Agent):
         x = layers.Dense(64, activation=activations.relu)(x)
         out = layers.Dense(3, activation=activations.linear, name="actions")(x)
         model = models.Model(x_in, out)
+        if os.path.exists("./bc_model/model_best.h5"):
+            model1 = models.load_model("./bc_model/model_best.h5")
+            # for i in range(1, 9):
+            #     model.layers[i].set_weights(model1.layers[i].get_weights())
+            model.set_weights(model1.get_weights())
+
         if not os.path.exists(self.model_dir):
             os.mkdir(self.model_dir)
         plot_model(model, os.path.join(self.model_dir, self.model_name + ".png"), show_shapes=True)

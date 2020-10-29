@@ -10,14 +10,14 @@ from datetime import datetime
 # -- Behavior Cloning -- #
 
 # -- Prepare model structure -- begin
-in_shape = (60, 80, 1)
+in_shape = (15, 20, 1)
 model_dir = "./bc_model"
 model_name = "model"
 model_path = os.path.join(model_dir, model_name + ".h5")
 if os.path.exists(model_path):
     model = models.load_model(model_path)
 else:
-    x_in = layers.Input(in_shape, name="1-gray-image")
+    x_in = layers.Input(in_shape, name="gray-image")
     x = x_in
     x = layers.Conv2D(32, (5, 5), (1, 1), "same", activation=activations.relu)(x)
     x = layers.BatchNormalization()(x)
@@ -28,9 +28,9 @@ else:
     x = layers.BatchNormalization()(x)
     x = layers.GlobalAveragePooling2D()(x)
     x = layers.Dense(64, activation=activations.relu)(x)
-    steer_out = layers.Dense(1, activation=activations.tanh, name="steer")(x)
+    out = layers.Dense(3, activation=activations.tanh, name="out")(x)
 
-    model = models.Model(x_in, steer_out)
+    model = models.Model(x_in, out)
     if not os.path.exists(model_dir):
         os.mkdir(model_dir)
     plot_model(model, os.path.join(model_dir, model_name + ".png"), show_shapes=True)
@@ -58,6 +58,17 @@ data = np.array(data)
 x = data[:, 0]
 x = np.array([np.array(s, dtype=np.float32) for s in x])
 y = np.array(data[:, 2], dtype=np.float32)
+yy = []
+for i in y:
+    yyy = [0.0, 0.0, 0.0]
+    if i < 0:
+        yyy[0] = 1.0
+    elif i == 0:
+        yyy[1] = 1.0
+    else:
+        yyy[2] = 1.0
+    yy.append(yyy)
+y = np.array(yy, dtype=np.float32)
 # -- Formatting data for X, y -- end
 
 # -- Prepare training callback functions -- begin

@@ -37,8 +37,8 @@ class World(object):
         pygame.init()
         pygame.font.init()
         # fonts = [x for x in pygame.font.get_fonts()]
-        font = pygame.font.match_font("couriernew")
-        self.font = pygame.font.Font(font, 16)
+        self.font = pygame.font.match_font("couriernew")
+        # self.font = pygame.font.Font(font, 16)
         self.display = pygame.display.set_mode(
             screen_size,
             pygame.HWSURFACE | pygame.DOUBLEBUF
@@ -68,14 +68,17 @@ class World(object):
             life_time=life_time
         )
 
-    def render_image(self, image):
+    def render_image(self, image) -> pygame.Surface:
         if image is None:
-            return
+            return None
         surface = pygame.surfarray.make_surface(image)
         self.display.blit(surface, (0, 0))
+        return surface
 
-    def render_text(self, text, pos=(0, 0), color=(255, 255, 255)):
-        self.display.blit(self.font.render(text, True, color), pos)
+    def render_text(self, text, pos=(0, 0), font_family="couriernew", font_size=16, color=(255, 255, 255), bold=False, italic=False):
+        font = pygame.font.SysFont(font_family, font_size, bold=bold, italic=italic)
+        # font = pygame.font.Font(self.font, font_size, bold=bold)
+        self.display.blit(font.render(text, True, color), pos)
 
     def redraw_display(self, fps=60):
         pygame.display.flip()
@@ -101,6 +104,7 @@ class World(object):
 
 class Vehicle(object):
     NO_PILOT = "Manual"
+    ASSIST_PILOT = "Assisted Driving"
     PID_PILOT = "PID Control"
     BC_PILOT = "Behavior Cloning"
     FOLLOW_PILOT = "Follow"
@@ -217,10 +221,10 @@ class Vehicle(object):
                 reverse: bool = False):
         self.actor.apply_control(
             carla.VehicleControl(
-                throttle=throttle,
-                brake=brake,
-                steer=steer,
-                reverse=reverse
+                throttle=float(throttle),
+                brake=float(brake),
+                steer=float(steer),
+                reverse=bool(reverse)
             )
         )
 
