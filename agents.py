@@ -131,13 +131,13 @@ class DQNAgent(Agent):
             self.model = models.load_model(self.model_path)
         else:
             self.model = self.new_model()
-        self.model.compile(optimizer=optimizers.Adam(lr=0.01), loss=losses.mse)
+        self.model.compile(optimizer=optimizers.Adam(lr=0.0001), loss=losses.mse)
         for i in range(1, 6):
             self.model.layers[i].trainable = False
         self.model2 = self.new_model()
         self.model2.set_weights(self.model.get_weights())
         self.steps = 0
-        self.replace_iter = 10
+        self.replace_iter = 50
 
     def new_model(self):
         x_in = layers.Input(self.in_shape, name="1-gray-image")

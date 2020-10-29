@@ -3,7 +3,7 @@ from agents import *
 
 
 client_fps = 20.0
-pilot_mode = Vehicle.DQN_PILOT   # Here to change other pilot agent.
+pilot_mode = Vehicle.NO_PILOT   # Here to change other pilot agent.
 agent = None
 
 in_shape = (15, 20, 1)
@@ -157,10 +157,10 @@ try:
                     s0 = agent.memory[-1][2]
                     a0 = agent.memory[-1][3]
                 s1 = [img, runner.speed_kmh()]
-                reward = 0
+                reward = 1
                 terminate = False
                 if runner.has_collided:
-                    reward = -999999
+                    reward = -10
                     terminate = True
                     t2 = time.time()
                     print("Running time: %.2fs" % (t2 - t1))
