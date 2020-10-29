@@ -114,6 +114,11 @@ class DQNAgent(Agent):
             self.model = self.new_model()
         self.model.compile(optimizer=optimizers.Adam(lr=0.01), loss=losses.mse)
 
+        self.model2 = self.new_model()
+        self.model2.set_weights(self.model.get_weights())
+        self.steps = 0
+        self.replace_iter = 1000
+
     def new_model(self):
         x_in = layers.Input(self.in_shape, name="1-gray-image")
         x = x_in
@@ -168,11 +173,17 @@ class DQNAgent(Agent):
             a1 = np.array(self.model.predict(s1))
             reward = np.array(reward, np.float32)
             terminate = np.array(terminate, np.bool)
-            qv[range(self.batch_size), a0] = reward + self.gamma * np.max(a1, axis=1) * np.invert(terminate)
+            a2 = np.array(self.model2.predict(s1))
+            a2 = a2[range(self.batch_size), np.argmax(a1, axis=1)]
+            qv[range(self.batch_size), a0] = reward + self.gamma * a2 * np.invert(terminate)
             loss = self.model.train_on_batch(s0, qv)
             self.model.save(self.model_path)
             if self.epsilon > self.epsilon_min:
                 self.epsilon *= self.epsilon_decay
+            self.steps += 1
+            print("steps:", self.steps)
+            if self.steps % self.replace_iter == 0:
+                self.model2.set_weights(self.model.get_weights())
             return loss
 
 

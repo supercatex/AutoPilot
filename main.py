@@ -14,7 +14,7 @@ follower = None         # Only for Follow pilot.
 
 
 try:
-    client = carla.Client("127.0.0.1", 3000)
+    client = carla.Client("127.0.0.1", 2000)
     client.set_timeout(5.0)
 
     world = World(client, "road_race_1", (640, 480), (-100, -50, 85), (-70.0, 0.0, 0.0))
@@ -136,20 +136,18 @@ try:
                     s0 = agent.memory[-1][2]
                     a0 = agent.memory[-1][3]
                 s1 = [img, runner.speed_kmh()]
-                reward = 1
+                reward = 0
                 terminate = False
                 if runner.has_collided:
-                    reward = -99999999
+                    reward = -10
                     terminate = True
                     t2 = time.time()
                     print("Running time: %.2fs" % (t2 - t1))
-                    # f = open("./dqn_model/log.txt", "a")
-                    # f.write(str((t2 - t1)) + "\n")
-                    # f.append(str((t2 - t1)) + "\n")
-                    # f.close()
                     if t2 - t1 > best_time:
                         best_time = t2 - t1
                         agent.model.save(agent.model_path)
+                elif runner.speed_kmh() > 0:
+                    reward = 1
                 agent.memory.append((s0, a0, s1, a1, reward, terminate))
                 # -- Remember game states -- end
 
