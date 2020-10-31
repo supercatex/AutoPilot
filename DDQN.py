@@ -166,11 +166,11 @@ class DDQN(object):
 
         if np.random.rand() <= self.epsilon:
             a = np.random.randint(0, self.out_size)
-            print("Random action:", a, ", epsilon:", self.epsilon)
+            print(self.current_step, ", Random action:", a, ", epsilon:", self.epsilon)
             return a
         else:
             s = np.reshape(s, (1,) + s.shape)
             q = self.q_model.predict(s)
             a = np.argmax(q, axis=1)[0]
-            print("Action:", a, ", Q:", q)
+            print(self.current_step, ", Action:", a, ", Q:", q)
             return a
