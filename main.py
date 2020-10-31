@@ -3,7 +3,7 @@ from agents import *
 
 
 client_fps = 20.0
-pilot_mode = Vehicle.DQN_PILOT   # Here to change other pilot agent.
+pilot_mode = Vehicle.DDQN_PILOT   # Here to change other pilot agent.
 agent = None
 
 
@@ -13,7 +13,8 @@ data_dir = "./data"     # Only for PID pilot collect data. (None: no data collec
 data_batch_size = 500   # Only for PID pilot collect data.
 follow_agent = None     # Only for Follow pilot.
 follower = None         # Only for Follow pilot.
-
+ddqn = None
+frames = None
 
 try:
     client = carla.Client("127.0.0.1", 2000)
@@ -158,10 +159,10 @@ try:
                     s0 = agent.memory[-1][2]
                     a0 = agent.memory[-1][3]
                 s1 = [img, runner.speed_kmh()]
-                reward = 1
+                reward = 5 - (runner.distance_left - runner.distance_right)
                 terminate = False
                 if runner.has_collided:
-                    reward = -10
+                    reward = -50
                     terminate = True
                     t2 = time.time()
                     print("Running time: %.2fs" % (t2 - t1))
@@ -176,6 +177,57 @@ try:
                 if terminate:
                     agent.replay()
                 # -- After terminate train min-batch from memory -- end
+
+            if runner.auto_pilot == Vehicle.DDQN_PILOT:
+                img = runner.rgb_image.swapaxes(0, 1)
+                img = cv2.resize(img, (84, 84))
+                img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+                img = np.array(img, dtype=np.float32) / 255
+                if agent is None:
+                    from DDQN import DDQN
+                    agent = Agent()
+                    ddqn = DDQN(
+                        "./ddqn_model", "model_best",
+                        in_shape=(84, 84, 4), out_size=4,
+                        epsilon=0.5,
+                        update_steps=100,
+                        learning_rate=0.00025,
+                        memory_size=10000
+                    )
+                    frames = deque(maxlen=4)
+                frames.append(img)
+
+                if len(frames) == 4:
+                    s0 = np.zeros((84, 84, 4), dtype=np.float32)
+                    a0 = 1
+                    if len(ddqn.memory) > 0:
+                        s0 = ddqn.memory[-1][2]
+                        a0 = ddqn.memory[-1][3]
+                    s1 = np.array(frames, dtype=np.float32)
+                    s1 = np.reshape(s1, (84, 84, 4))
+                    a1 = ddqn.step(state=s1)
+                    r1 = 0.0
+                    terminal = runner.has_collided
+                    if terminal:
+                        r1 = -1.0
+                    elif runner.speed_kmh() > 0:
+                        r1 = 1.0
+                    ddqn.add(s0, a0, s1, a1, r1, terminal)
+                    if terminal:
+                        ddqn.replay()
+
+                    agent.throttle = 0.0
+                    agent.steer = 0.0
+                    agent.brake = 0.0
+                    agent.reverse = False
+                    if a1 == 0:
+                        pass
+                    elif a1 == 1:
+                        agent.steer = -1.0
+                    elif a1 == 2:
+                        agent.throttle = 1.0
+                    elif a1 == 3:
+                        agent.steer = 1.0
             # -- Agent running step -- end
 
             # -- Action -- begin
@@ -244,4 +296,6 @@ try:
 except Exception as e:
     print(e)
 finally:
+    if ddqn is not None:
+        ddqn.backup()
     print("done.")

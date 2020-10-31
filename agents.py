@@ -131,7 +131,7 @@ class DQNAgent(Agent):
             self.model = models.load_model(self.model_path)
         else:
             self.model = self.new_model()
-        self.model.compile(optimizer=optimizers.Adam(lr=0.0001), loss=losses.mse)
+        self.model.compile(optimizer=optimizers.Adam(lr=0.0001 * 5), loss=losses.mse)
         # for i in range(1, 6):
         #     self.model.layers[i].trainable = False
         self.model2 = self.new_model()

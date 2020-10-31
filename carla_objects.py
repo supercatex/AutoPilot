@@ -109,6 +109,7 @@ class Vehicle(object):
     BC_PILOT = "Behavior Cloning"
     FOLLOW_PILOT = "Follow"
     DQN_PILOT = "DQN"
+    DDQN_PILOT = "DDQN"
 
     def __init__(self,
                  world: World,
