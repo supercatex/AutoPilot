@@ -143,6 +143,10 @@ class DDQN(object):
         with open(self.memory_path, "wb") as f:
             pickle.dump(self.memory, f)
 
+        print("STEP:", self.current_step)
+        print("Epsilon:", self.epsilon)
+        print("Memory:", len(self.memory))
+
         self.show_history()
 
     def show_history(self):

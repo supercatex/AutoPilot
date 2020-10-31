@@ -211,10 +211,11 @@ try:
                     if terminal:
                         r1 = -1.0
                     elif runner.speed_kmh() > 0:
-                        r1 = 1.0
+                        r1 = 0.1
+                    elif runner.speed_kmh() == 0:
+                        r1 = -0.1
                     ddqn.add(s0, a0, s1, a1, r1, terminal)
-                    if terminal:
-                        ddqn.replay()
+                    ddqn.replay()
 
                     agent.throttle = 0.0
                     agent.steer = 0.0
