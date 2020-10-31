@@ -180,7 +180,7 @@ try:
 
             if runner.auto_pilot == Vehicle.DDQN_PILOT:
                 img = runner.rgb_image.swapaxes(0, 1)
-                img = cv2.resize(img, (84, 84))
+                img = cv2.resize(img, (30, 40))
                 img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
                 img = np.array(img, dtype=np.float32) / 255
                 if agent is None:
@@ -188,23 +188,23 @@ try:
                     agent = Agent()
                     ddqn = DDQN(
                         "./ddqn_model", "model_best",
-                        in_shape=(84, 84, 4), out_size=4,
-                        epsilon=0.5,
-                        update_steps=100,
+                        in_shape=img.shape + (1,), out_size=3,
+                        epsilon=0.1,
+                        update_steps=1000,
                         learning_rate=0.00025,
-                        memory_size=10000
+                        memory_size=100000
                     )
-                    frames = deque(maxlen=4)
+                    frames = deque(maxlen=ddqn.in_shape[2])
                 frames.append(img)
 
-                if len(frames) == 4:
-                    s0 = np.zeros((84, 84, 4), dtype=np.float32)
+                if len(frames) == frames.maxlen:
+                    s0 = np.zeros(ddqn.in_shape, dtype=np.float32)
                     a0 = 1
                     if len(ddqn.memory) > 0:
                         s0 = ddqn.memory[-1][2]
                         a0 = ddqn.memory[-1][3]
                     s1 = np.array(frames, dtype=np.float32)
-                    s1 = np.reshape(s1, (84, 84, 4))
+                    s1 = np.reshape(s1, ddqn.in_shape)
                     a1 = ddqn.step(state=s1)
                     r1 = 0.0
                     terminal = runner.has_collided
@@ -217,17 +217,15 @@ try:
                     ddqn.add(s0, a0, s1, a1, r1, terminal)
                     ddqn.replay()
 
-                    agent.throttle = 0.0
+                    agent.throttle = 0.3
                     agent.steer = 0.0
                     agent.brake = 0.0
                     agent.reverse = False
                     if a1 == 0:
-                        pass
-                    elif a1 == 1:
                         agent.steer = -1.0
+                    elif a1 == 1:
+                        agent.throttle = 0.3
                     elif a1 == 2:
-                        agent.throttle = 1.0
-                    elif a1 == 3:
                         agent.steer = 1.0
             # -- Agent running step -- end
 
